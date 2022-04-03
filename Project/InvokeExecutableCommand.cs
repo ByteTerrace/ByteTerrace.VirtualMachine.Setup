@@ -10,7 +10,7 @@ namespace ByteTerrace.VirtualMachine.Setup;
 [OutputType(typeof(int))]
 public class InvokeExecutableCommand : Cmdlet
 {
-    private ProcessStartInfo? m_processStartInfo;
+    private ProcessStartInfo ProcessStartInfo { get; }
 
     /// <summary>
     /// 
@@ -28,11 +28,11 @@ public class InvokeExecutableCommand : Cmdlet
     /// 
     /// </summary>
     [Parameter(
-            Mandatory = false,
-            Position = 2,
-            ValueFromPipeline = true,
-            ValueFromPipelineByPropertyName = true
-        )]
+        Mandatory = false,
+        Position = 2,
+        ValueFromPipeline = true,
+        ValueFromPipelineByPropertyName = true
+    )]
 #pragma warning disable CA2227 // Collection properties should be read only
     public Dictionary<string, string>? EnvironmentVariables { get; set; }
 #pragma warning restore CA2227 // Collection properties should be read only
@@ -45,11 +45,41 @@ public class InvokeExecutableCommand : Cmdlet
         ValueFromPipeline = true,
         ValueFromPipelineByPropertyName = true
     )]
-    public string? FileName { get; set; }
+    public string FileName { get; set; } = string.Empty;
     /// <summary>
     /// 
     /// </summary>
+    [Parameter(
+        Mandatory = false,
+        Position = 3,
+        ValueFromPipeline = true,
+        ValueFromPipelineByPropertyName = true
+    )]
     public int TimeoutInMilliseconds { get; set; } = int.MaxValue;
+    /// <summary>
+    /// 
+    /// </summary>
+    [Parameter(
+        Mandatory = false,
+        Position = 4,
+        ValueFromPipeline = true,
+        ValueFromPipelineByPropertyName = true
+    )]
+    public string WorkingDirectory { get; set; } = string.Empty;
+
+    public InvokeExecutableCommand() {
+        ProcessStartInfo = new ProcessStartInfo {
+            FileName = string.Empty,
+            RedirectStandardError = false,
+            RedirectStandardInput = false,
+            RedirectStandardOutput = false,
+            StandardErrorEncoding = default,
+            StandardInputEncoding = default,
+            StandardOutputEncoding = default,
+            UseShellExecute = false,
+            WorkingDirectory = string.Empty,
+        };
+    }
 
     private bool LogException(ErrorCategory category, Exception exception, string id, object target) {
         WriteError(errorRecord: new ErrorRecord(
@@ -66,20 +96,7 @@ public class InvokeExecutableCommand : Cmdlet
     /// 
     /// </summary>
     protected override void BeginProcessing() {
-        if (FileName is null) {
-            throw new ArgumentNullException(paramName: nameof(FileName));
-        }
-
-        var processStartInfo = new ProcessStartInfo(fileName: FileName) {
-            RedirectStandardError = false,
-            RedirectStandardInput = false,
-            RedirectStandardOutput = false,
-            StandardErrorEncoding = default,
-            StandardInputEncoding = default,
-            StandardOutputEncoding = default,
-            UseShellExecute = false,
-            WorkingDirectory = string.Empty,
-        };
+        var processStartInfo = ProcessStartInfo;
 
         if (Arguments is not null) {
             var argumentList = processStartInfo.ArgumentList;
@@ -97,13 +114,14 @@ public class InvokeExecutableCommand : Cmdlet
             }
         }
 
-        m_processStartInfo = processStartInfo;
+        processStartInfo.FileName = FileName;
+        processStartInfo.WorkingDirectory = WorkingDirectory;
     }
     /// <summary>
     /// 
     /// </summary>
     protected override void ProcessRecord() {
-        using var process = Process.Start(startInfo: m_processStartInfo);
+        using var process = Process.Start(startInfo: ProcessStartInfo);
 
         try {
             if (process.WaitForExit(milliseconds: TimeoutInMilliseconds)) {
