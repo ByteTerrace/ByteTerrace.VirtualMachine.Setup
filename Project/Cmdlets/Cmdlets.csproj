@@ -3,8 +3,7 @@
         <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
         <AnalysisLevel>latest</AnalysisLevel>
         <AnalysisMode>AllEnabledByDefault</AnalysisMode>
-        <AssemblyName>ByteTerrace.VirtualMachine.Setup</AssemblyName>
-        <AssemblyOriginatorKeyFile>ByteTerrace.VirtualMachine.Setup.snk</AssemblyOriginatorKeyFile>
+        <AssemblyName>ByteTerrace.VirtualMachine.Setup.Cmdlets</AssemblyName>
         <Authors>ByteTerrace</Authors>
         <Company>ByteTerrace</Company>
         <Copyright>Copyright ©2022 ByteTerrace</Copyright>
@@ -30,7 +29,7 @@
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
         <SignAssembly>true</SignAssembly>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-        <TargetFrameworks>netstandard2.1</TargetFrameworks>
+        <TargetFrameworks>net6.0</TargetFrameworks>
         <VersionPrefix>1.0.0</VersionPrefix>
         <VersionSuffix>preview1</VersionSuffix>
     </PropertyGroup>
@@ -83,12 +82,11 @@
         </Otherwise>
     </Choose>
     <ItemGroup>
-        <PackageReference Include="PowerShellStandard.Library" Version="5.1.1">
-            <PrivateAssets>All</PrivateAssets>
-        </PackageReference>
+        <PackageReference Include="PowerShellStandard.Library" Version="[5.*,6)" PrivateAssets="All" />
     </ItemGroup>
     <ItemGroup>
-        <None Include=".\..\images\icon.png" Pack="true" PackagePath="\" />
-        <None Include=".\..\README.md" Pack="true" PackagePath="\" />
+        <None Include=".\..\..\images\icon.png" Pack="true" PackagePath="\" />
+        <None Include=".\..\..\README.md" Pack="true" PackagePath="\" />
+        <ProjectReference Include="..\Core\Core.csproj" />
     </ItemGroup>
 </Project>

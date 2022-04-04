@@ -1,0 +1,92 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+        <AnalysisLevel>latest</AnalysisLevel>
+        <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+        <AssemblyName>ByteTerrace.VirtualMachine.Setup.Core</AssemblyName>
+        <Authors>ByteTerrace</Authors>
+        <Company>ByteTerrace</Company>
+        <Copyright>Copyright ©2022 ByteTerrace</Copyright>
+        <DelaySign>false</DelaySign>
+        <Deterministic>true</Deterministic>
+        <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
+        <EnableNETAnalyzers>true</EnableNETAnalyzers>
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>latest</LangVersion>
+        <NeutralLanguage>English (United States)</NeutralLanguage>
+        <Nullable>enable</Nullable>
+        <PackageIcon>icon.png</PackageIcon>
+        <PackageLicenseExpression>Apache-2.0 OR MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/ByteTerrace/ByteTerrace.VirtualMachine.Setup</PackageProjectUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageReleaseNotes>This is a preview that is not intented for production use.</PackageReleaseNotes>
+        <PackageTags>configuration;cross-platform;powershell;virtual-machine;vm</PackageTags>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <RepositoryType>Git</RepositoryType>
+        <RepositoryUrl>https://github.com/ByteTerrace/ByteTerrace.VirtualMachine.Setup</RepositoryUrl>
+        <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+        <SignAssembly>true</SignAssembly>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <TargetFrameworks>net6.0</TargetFrameworks>
+        <VersionPrefix>1.0.0</VersionPrefix>
+        <VersionSuffix>preview1</VersionSuffix>
+    </PropertyGroup>
+    <Choose>
+        <When Condition="'$(Configuration)' == 'Release'">
+            <PropertyGroup>
+                <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+                <DebugType>portable</DebugType>
+                <EmbedUntrackedSources>true</EmbedUntrackedSources>
+                <IncludeSymbols>true</IncludeSymbols>
+                <GenerateDocumentationFile>true</GenerateDocumentationFile>
+                <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+                <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+            </PropertyGroup>
+        </When>
+        <Otherwise>
+            <PropertyGroup>
+                <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
+                <DebugType>pdbonly</DebugType>
+                <EmbedUntrackedSources>false</EmbedUntrackedSources>
+                <IncludeSymbols>false</IncludeSymbols>
+                <GenerateDocumentationFile>false</GenerateDocumentationFile>
+                <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+                <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+            </PropertyGroup>
+        </Otherwise>
+    </Choose>
+    <Choose>
+        <When Condition="'$(GITHUB_ACTIONS)' == 'true'">
+            <PropertyGroup>
+                <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+            </PropertyGroup>
+        </When>
+        <Otherwise>
+            <PropertyGroup>
+                <ContinuousIntegrationBuild>false</ContinuousIntegrationBuild>
+            </PropertyGroup>
+        </Otherwise>
+    </Choose>
+    <Choose>
+        <When Condition="'$(ContinuousIntegrationBuild)' == 'true'">
+            <PropertyGroup>
+                <RestoreLockedMode>true</RestoreLockedMode>
+            </PropertyGroup>
+        </When>
+        <Otherwise>
+            <PropertyGroup>
+                <RestoreLockedMode>false</RestoreLockedMode>
+            </PropertyGroup>
+        </Otherwise>
+    </Choose>
+    <ItemGroup>
+        <PackageReference Include="Azure.Identity" Version="[1.*,2)" />
+        <PackageReference Include="Azure.Storage.Blobs" Version="[12.*,13)" />
+    </ItemGroup>
+    <ItemGroup>
+        <None Include=".\..\..\images\icon.png" Pack="true" PackagePath="\" />
+        <None Include=".\..\..\README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+</Project>

@@ -1,10 +1,10 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
-[assembly: CLSCompliant(isCompliant: false)]
+[assembly: CLSCompliant(isCompliant: true)]
 [assembly: SuppressMessage(
     category: "Design",
     checkId: "CA1062:Validate arguments of public methods",
     Justification = "<Pending>",
     Scope = "namespaceanddescendants",
-    Target = "~N:ByteTerrace.VirtualMachine.Setup"
+    Target = "~N:ByteTerrace.VirtualMachine.Setup.Core"
 )]

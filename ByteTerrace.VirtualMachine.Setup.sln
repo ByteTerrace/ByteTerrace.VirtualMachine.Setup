@@ -3,7 +3,20 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.32126.317
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ByteTerrace.VirtualMachine.Setup", "Project\ByteTerrace.VirtualMachine.Setup.csproj", "{CAD005FB-45E5-4CCF-A717-ED2A901EBE15}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core", "Project\Core\Core.csproj", "{ED203989-4275-4DF8-AE45-523A4EE4D502}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cmdlets", "Project\Cmdlets\Cmdlets.csproj", "{CBDF4344-6889-4D74-8AEC-6D92F8A118B6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{785DACAE-197A-4891-89AA-04A047C643ED}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		Project\Build.ps1 = Project\Build.ps1
+		Project\ByteTerrace.VirtualMachine.Setup.psd1 = Project\ByteTerrace.VirtualMachine.Setup.psd1
+		Project\ByteTerrace.VirtualMachine.Setup.psm1 = Project\ByteTerrace.VirtualMachine.Setup.psm1
+		LICENSE-APACHE-2.0.txt = LICENSE-APACHE-2.0.txt
+		LICENSE-MIT.txt = LICENSE-MIT.txt
+		nuget.config = nuget.config
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +24,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{CAD005FB-45E5-4CCF-A717-ED2A901EBE15}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CAD005FB-45E5-4CCF-A717-ED2A901EBE15}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CAD005FB-45E5-4CCF-A717-ED2A901EBE15}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CAD005FB-45E5-4CCF-A717-ED2A901EBE15}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ED203989-4275-4DF8-AE45-523A4EE4D502}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ED203989-4275-4DF8-AE45-523A4EE4D502}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ED203989-4275-4DF8-AE45-523A4EE4D502}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ED203989-4275-4DF8-AE45-523A4EE4D502}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CBDF4344-6889-4D74-8AEC-6D92F8A118B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CBDF4344-6889-4D74-8AEC-6D92F8A118B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CBDF4344-6889-4D74-8AEC-6D92F8A118B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CBDF4344-6889-4D74-8AEC-6D92F8A118B6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Management.Automation;
 
-namespace ByteTerrace.VirtualMachine.Setup;
+namespace ByteTerrace.VirtualMachine.Setup.Cmdlets;
 
 /// <summary>
 /// 
@@ -21,9 +21,7 @@ public class InvokeExecutableCommand : Cmdlet
         ValueFromPipeline = true,
         ValueFromPipelineByPropertyName = true
     )]
-#pragma warning disable CA1819 // Properties should not return arrays
     public string[]? Arguments { get; set; }
-#pragma warning restore CA1819 // Properties should not return arrays
     /// <summary>
     /// 
     /// </summary>
@@ -33,9 +31,7 @@ public class InvokeExecutableCommand : Cmdlet
         ValueFromPipeline = true,
         ValueFromPipelineByPropertyName = true
     )]
-#pragma warning disable CA2227 // Collection properties should be read only
-    public Dictionary<string, string>? EnvironmentVariables { get; set; }
-#pragma warning restore CA2227 // Collection properties should be read only
+    public Dictionary<string, string?>? EnvironmentVariables { get; set; }
     /// <summary>
     /// 
     /// </summary>
@@ -45,7 +41,7 @@ public class InvokeExecutableCommand : Cmdlet
         ValueFromPipeline = true,
         ValueFromPipelineByPropertyName = true
     )]
-    public string FileName { get; set; } = string.Empty;
+    public string? FileName { get; set; }
     /// <summary>
     /// 
     /// </summary>
@@ -124,6 +120,10 @@ public class InvokeExecutableCommand : Cmdlet
         using var process = Process.Start(startInfo: ProcessStartInfo);
 
         try {
+            if (process is null) {
+                throw new InvalidOperationException(message: "Process start returned null; unable to continue.");
+            }
+
             if (process.WaitForExit(milliseconds: TimeoutInMilliseconds)) {
                 WriteObject(sendToPipeline: process.ExitCode);
             }
@@ -138,7 +138,7 @@ public class InvokeExecutableCommand : Cmdlet
             category: ErrorCategory.NotSpecified,
             exception: e,
             id: "UnhandledException",
-            target: process
+            target: (process ?? ((object)this))
         )) { }
         finally { }
     }
