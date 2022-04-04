@@ -65,6 +65,7 @@ public class InvokeExecutableCommand : Cmdlet
 
     public InvokeExecutableCommand() {
         ProcessStartInfo = new ProcessStartInfo {
+            CreateNoWindow = true,
             FileName = string.Empty,
             RedirectStandardError = false,
             RedirectStandardInput = false,

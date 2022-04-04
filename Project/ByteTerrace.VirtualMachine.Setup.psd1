@@ -2,7 +2,7 @@
     AliasesToExport = @()
     Author = 'ByteTerrace'
     CmdletsToExport = @(
-        'Get-Blob',
+        'Get-AzureStorageBlob',
         'Invoke-Executable'
     )
     CompanyName = 'ByteTerrace'

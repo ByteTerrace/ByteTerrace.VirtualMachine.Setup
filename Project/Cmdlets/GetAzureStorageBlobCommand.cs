@@ -5,13 +5,20 @@ using System.Management.Automation;
 
 namespace ByteTerrace.VirtualMachine.Setup.Cmdlets;
 
-[Cmdlet(VerbsCommon.Get, "Blob")]
+[Cmdlet(VerbsCommon.Get, "AzureStorageBlob")]
 [OutputType(typeof(FileInfo))]
-public class GetBlobCommand : Cmdlet, IDisposable
+public class GetAzureStorageBlobCommand : Cmdlet, IDisposable
 {
     private CancellationTokenSource? CancellationTokenSource { get; set; }
     private bool IsDisposed { get; set; }
 
+    [Parameter(
+        Mandatory = true,
+        Position = 0,
+        ValueFromPipeline = true,
+        ValueFromPipelineByPropertyName = true
+    )]
+    public string? AccountName { get; set; }
     [Parameter(
         Mandatory = false,
         Position = 2,
@@ -27,13 +34,6 @@ public class GetBlobCommand : Cmdlet, IDisposable
     )]
     public string? RemoteBlobPath { get; set; }
     [Parameter(
-        Mandatory = true,
-        Position = 0,
-        ValueFromPipeline = true,
-        ValueFromPipelineByPropertyName = true
-    )]
-    public string? StorageAccountName { get; set; }
-    [Parameter(
         Mandatory = false,
         Position = 3,
         ValueFromPipeline = true,
@@ -48,7 +48,7 @@ public class GetBlobCommand : Cmdlet, IDisposable
     )]
     public TokenCredential? TokenCredential { get; set; }
 
-    public GetBlobCommand() {
+    public GetAzureStorageBlobCommand() {
         CancellationTokenSource = new();
         IsDisposed = false;
     }
@@ -94,7 +94,7 @@ public class GetBlobCommand : Cmdlet, IDisposable
         WriteObject(
             sendToPipeline: AzureStorageAccountUtilities.DownloadBlob(
                 cancellationToken: cancellationToken,
-                sourceUri: new Uri($"https://{StorageAccountName}.blob.core.windows.net/{RemoteBlobPath}"),
+                sourceUri: new Uri($"https://{AccountName}.blob.core.windows.net/{RemoteBlobPath}"),
                 targetFile: new FileInfo(fileName: LocalFilePath),
                 tokenCredential: TokenCredential!
             )
