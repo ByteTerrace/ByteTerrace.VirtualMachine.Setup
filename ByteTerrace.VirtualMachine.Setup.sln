@@ -12,7 +12,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 		Project\Build.ps1 = Project\Build.ps1
 		Project\ByteTerrace.VirtualMachine.Setup.psd1 = Project\ByteTerrace.VirtualMachine.Setup.psd1
-		Project\ByteTerrace.VirtualMachine.Setup.psm1 = Project\ByteTerrace.VirtualMachine.Setup.psm1
 		LICENSE-APACHE-2.0.txt = LICENSE-APACHE-2.0.txt
 		LICENSE-MIT.txt = LICENSE-MIT.txt
 		nuget.config = nuget.config

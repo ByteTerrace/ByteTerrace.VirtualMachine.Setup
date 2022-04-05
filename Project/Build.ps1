@@ -36,7 +36,6 @@ finally {
 
 $commonFiles = [System.Collections.Generic.HashSet[string]]::new();
 Copy-Item -Path "$PSScriptRoot/ByteTerrace.VirtualMachine.Setup.psd1" -Destination $outPath;
-Copy-Item -Path "$PSScriptRoot/ByteTerrace.VirtualMachine.Setup.psm1" -Destination $outPath;
 Get-ChildItem -Path "$PSScriptRoot/Core/bin/$Configuration/$netCore/publish" |
     Where-Object { $_.Extension -in '.dll','.pdb' } |
     ForEach-Object { [void]$commonFiles.Add($_.Name); Copy-Item -LiteralPath $_.FullName -Destination $commonPath };

@@ -10,18 +10,27 @@ public class DependencyAssemblyLoadContext : AssemblyLoadContext
     private static string PowerShellHome { get; } = Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!;
 
     internal static DependencyAssemblyLoadContext GetForDirectory(string directoryPath) {
-        return DependencyLoadContexts.GetOrAdd(directoryPath, (path) => new DependencyAssemblyLoadContext(path));
+        return DependencyLoadContexts.GetOrAdd(
+            key: directoryPath,
+            valueFactory: (path) => new DependencyAssemblyLoadContext(dependencyDirectoryPath: path)
+        );
     }
 
-    private readonly string m_dependencyDirectoryPath;
+    private string DependencyDirectoryPath { get; }
 
-    public DependencyAssemblyLoadContext(string dependencyDirPath) : base(nameof(DependencyAssemblyLoadContext)) {
-        m_dependencyDirectoryPath = dependencyDirPath;
+    public DependencyAssemblyLoadContext(string dependencyDirectoryPath) : base(name: nameof(DependencyAssemblyLoadContext)) {
+        DependencyDirectoryPath = dependencyDirectoryPath;
     }
 
     protected override Assembly Load(AssemblyName assemblyName) {
         var assemblyFileName = $"{assemblyName.Name}.dll";
-        var dependencyAssemblyPath = Path.Join(m_dependencyDirectoryPath, assemblyFileName);
+        var powerShellHomeAssemblyPath = Path.Join(PowerShellHome, assemblyFileName);
+
+        if (File.Exists(powerShellHomeAssemblyPath)) {
+            return null!;
+        }
+
+        var dependencyAssemblyPath = Path.Join(DependencyDirectoryPath, assemblyFileName);
 
         return (File.Exists(dependencyAssemblyPath) ? LoadFromAssemblyPath(dependencyAssemblyPath) : null)!;
     }
