@@ -6,7 +6,10 @@ namespace ByteTerrace.VirtualMachine.Setup.Cmdlets;
 /// <summary>
 /// 
 /// </summary>
-[Cmdlet(VerbsLifecycle.Invoke, "Executable")]
+[Cmdlet(
+    nounName: "Executable",
+    verbName: VerbsLifecycle.Invoke
+)]
 [OutputType(typeof(int))]
 public class InvokeExecutableCommand : Cmdlet
 {

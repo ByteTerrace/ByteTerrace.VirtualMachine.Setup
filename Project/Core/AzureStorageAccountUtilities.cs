@@ -12,6 +12,7 @@ public static class AzureStorageAccountUtilities
     /// 
     /// </summary>
     /// <param name="cancellationToken"></param>
+    /// <param name="fileMode"></param>
     /// <param name="sourceUri"></param>
     /// <param name="targetFile"></param>
     /// <param name="tokenCredential"></param>
@@ -20,16 +21,28 @@ public static class AzureStorageAccountUtilities
         Uri sourceUri,
         FileInfo targetFile,
         TokenCredential tokenCredential,
+        FileMode fileMode = FileMode.CreateNew,
         CancellationToken cancellationToken = default
     ) {
-        var blobClient = new BlobClient(
-            blobUri: sourceUri,
-            credential: tokenCredential,
-            options: default
-        );
+        BlobClient blobClient;
+
+        if (tokenCredential is null) {
+            blobClient = new BlobClient(
+                blobUri: sourceUri,
+                options: default
+            );
+        }
+        else {
+            blobClient = new BlobClient(
+                blobUri: sourceUri,
+                credential: tokenCredential,
+                options: default
+            );
+        }
+
         using var fileStream = targetFile.Open(
             access: FileAccess.Write,
-            mode: FileMode.CreateNew,
+            mode: fileMode,
             share: FileShare.Read
         );
         using var clientResponse = blobClient.DownloadTo(

@@ -8,7 +8,10 @@ namespace ByteTerrace.VirtualMachine.Setup.Cmdlets;
 /// <summary>
 /// 
 /// </summary>
-[Cmdlet(VerbsCommon.Get, "AzureStorageBlob")]
+[Cmdlet(
+    nounName: "AzureStorageBlob",
+    verbName: VerbsCommon.Get
+)]
 [OutputType(typeof(FileInfo))]
 public class GetAzureStorageBlobCommand : Cmdlet, IDisposable
 {
@@ -25,6 +28,11 @@ public class GetAzureStorageBlobCommand : Cmdlet, IDisposable
         ValueFromPipelineByPropertyName = true
     )]
     public string? AccountName { get; set; }
+    /// <summary>
+    /// 
+    /// </summary>
+    [Parameter]
+    public SwitchParameter Force { get; set; }
     /// <summary>
     /// 
     /// </summary>
@@ -81,10 +89,6 @@ public class GetAzureStorageBlobCommand : Cmdlet, IDisposable
         if (TimeoutInMilliseconds is not null) {
             CancellationTokenSource.CancelAfter(millisecondsDelay: TimeoutInMilliseconds.Value);
         }
-
-        if (TokenCredential is null) {
-            TokenCredential = new DefaultAzureCredential();
-        }
     }
     /// <summary>
     /// 
@@ -110,6 +114,7 @@ public class GetAzureStorageBlobCommand : Cmdlet, IDisposable
         WriteObject(
             sendToPipeline: AzureStorageAccountUtilities.DownloadBlob(
                 cancellationToken: CancellationTokenSource.Token,
+                fileMode: (Force.ToBool() ? FileMode.Create : FileMode.CreateNew),
                 sourceUri: new Uri($"https://{AccountName}.blob.core.windows.net/{RemoteBlobPath}"),
                 targetFile: new FileInfo(fileName: LocalFilePath),
                 tokenCredential: TokenCredential!
