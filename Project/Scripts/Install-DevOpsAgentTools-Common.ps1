@@ -3,9 +3,9 @@ param(
     [Parameter(Mandatory = $false)]
     [string]$AccountName = 'byteterrace',
     [Parameter(Mandatory = $false)]
-    [string]$TemporaryPath = '',
+    [Management.Automation.SwitchParameter]$Force,
     [Parameter(Mandatory = $false)]
-    [Management.Automation.SwitchParameter]$Force
+    [string]$TemporaryPath = ''
 );
 
 $localBinaries = [Collections.Generic.List[PSObject]]::new();
@@ -120,6 +120,10 @@ $localBinaries |
     ForEach-Object {
         $arguments = ([Collections.Generic.List[string]]$_.Arguments);
         $fileInfo = $_.FileInfo;
+
+        if ($null -eq $arguments) {
+            $arguments = [Collections.Generic.List[string]]::new();
+        }
 
         switch ($fileInfo.Name) {
             { $_.EndsWith('.deb') } {
