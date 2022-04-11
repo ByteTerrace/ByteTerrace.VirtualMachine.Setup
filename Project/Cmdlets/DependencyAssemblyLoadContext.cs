@@ -4,6 +4,9 @@ using System.Runtime.Loader;
 
 namespace ByteTerrace.VirtualMachine.Setup.Cmdlets;
 
+/// <summary>
+/// 
+/// </summary>
 public class DependencyAssemblyLoadContext : AssemblyLoadContext
 {
     private static ConcurrentDictionary<string, DependencyAssemblyLoadContext> DependencyLoadContexts { get; } = new();
@@ -18,10 +21,10 @@ public class DependencyAssemblyLoadContext : AssemblyLoadContext
 
     private string DependencyDirectoryPath { get; }
 
-    public DependencyAssemblyLoadContext(string dependencyDirectoryPath) : base(name: nameof(DependencyAssemblyLoadContext)) {
-        DependencyDirectoryPath = dependencyDirectoryPath;
-    }
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="assemblyName"></param>
     protected override Assembly Load(AssemblyName assemblyName) {
         var assemblyFileName = $"{assemblyName.Name}.dll";
         var powerShellHomeAssemblyPath = Path.Join(PowerShellHome, assemblyFileName);
@@ -33,5 +36,13 @@ public class DependencyAssemblyLoadContext : AssemblyLoadContext
         var dependencyAssemblyPath = Path.Join(DependencyDirectoryPath, assemblyFileName);
 
         return (File.Exists(dependencyAssemblyPath) ? LoadFromAssemblyPath(dependencyAssemblyPath) : null)!;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="dependencyDirectoryPath"></param>
+    public DependencyAssemblyLoadContext(string dependencyDirectoryPath) : base(name: nameof(DependencyAssemblyLoadContext)) {
+        DependencyDirectoryPath = dependencyDirectoryPath;
     }
 }

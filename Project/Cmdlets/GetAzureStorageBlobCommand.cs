@@ -5,13 +5,19 @@ using System.Management.Automation;
 
 namespace ByteTerrace.VirtualMachine.Setup.Cmdlets;
 
+/// <summary>
+/// 
+/// </summary>
 [Cmdlet(VerbsCommon.Get, "AzureStorageBlob")]
 [OutputType(typeof(FileInfo))]
 public class GetAzureStorageBlobCommand : Cmdlet, IDisposable
 {
-    private CancellationTokenSource? CancellationTokenSource { get; set; }
+    private CancellationTokenSource CancellationTokenSource { get; set; }
     private bool IsDisposed { get; set; }
 
+    /// <summary>
+    /// 
+    /// </summary>
     [Parameter(
         Mandatory = true,
         Position = 0,
@@ -19,6 +25,9 @@ public class GetAzureStorageBlobCommand : Cmdlet, IDisposable
         ValueFromPipelineByPropertyName = true
     )]
     public string? AccountName { get; set; }
+    /// <summary>
+    /// 
+    /// </summary>
     [Parameter(
         Mandatory = false,
         Position = 2,
@@ -26,6 +35,9 @@ public class GetAzureStorageBlobCommand : Cmdlet, IDisposable
         ValueFromPipelineByPropertyName = true
     )]
     public string? LocalFilePath { get; set; }
+    /// <summary>
+    /// 
+    /// </summary>
     [Parameter(
         Mandatory = true,
         Position = 1,
@@ -33,6 +45,9 @@ public class GetAzureStorageBlobCommand : Cmdlet, IDisposable
         ValueFromPipelineByPropertyName = true
     )]
     public string? RemoteBlobPath { get; set; }
+    /// <summary>
+    /// 
+    /// </summary>
     [Parameter(
         Mandatory = false,
         Position = 3,
@@ -40,6 +55,9 @@ public class GetAzureStorageBlobCommand : Cmdlet, IDisposable
         ValueFromPipelineByPropertyName = true
     )]
     public int? TimeoutInMilliseconds { get; set; }
+    /// <summary>
+    /// 
+    /// </summary>
     [Parameter(
         Mandatory = false,
         Position = 4,
@@ -48,52 +66,50 @@ public class GetAzureStorageBlobCommand : Cmdlet, IDisposable
     )]
     public TokenCredential? TokenCredential { get; set; }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public GetAzureStorageBlobCommand() {
         CancellationTokenSource = new();
         IsDisposed = false;
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     protected override void BeginProcessing() {
+        if (TimeoutInMilliseconds is not null) {
+            CancellationTokenSource.CancelAfter(millisecondsDelay: TimeoutInMilliseconds.Value);
+        }
+
         if (TokenCredential is null) {
             TokenCredential = new DefaultAzureCredential();
         }
     }
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="disposing"></param>
     protected virtual void Dispose(bool disposing) {
         if (!IsDisposed) {
             if (disposing) {
-                var cancellationTokenSource = CancellationTokenSource;
-
-                if (cancellationTokenSource is not null) {
-                    cancellationTokenSource.Dispose();
-                }
-
-                CancellationTokenSource = null;
+                CancellationTokenSource.Dispose();
             }
 
             IsDisposed = true;
         }
     }
+    /// <summary>
+    /// 
+    /// </summary>
     protected override void ProcessRecord() {
         if (LocalFilePath is null) {
             LocalFilePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         }
 
-        CancellationToken cancellationToken;
-
-        if (CancellationTokenSource is not null) {
-            if (TimeoutInMilliseconds is not null) {
-                CancellationTokenSource.CancelAfter(millisecondsDelay: TimeoutInMilliseconds.Value);
-            }
-
-            cancellationToken = CancellationTokenSource.Token;
-        }
-        else {
-            cancellationToken = default;
-        }
-
         WriteObject(
             sendToPipeline: AzureStorageAccountUtilities.DownloadBlob(
-                cancellationToken: cancellationToken,
+                cancellationToken: CancellationTokenSource.Token,
                 sourceUri: new Uri($"https://{AccountName}.blob.core.windows.net/{RemoteBlobPath}"),
                 targetFile: new FileInfo(fileName: LocalFilePath),
                 tokenCredential: TokenCredential!
@@ -101,6 +117,9 @@ public class GetAzureStorageBlobCommand : Cmdlet, IDisposable
         );
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public void Dispose() {
         Dispose(disposing: true);
         GC.SuppressFinalize(obj: this);

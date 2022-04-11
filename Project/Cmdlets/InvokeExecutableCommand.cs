@@ -63,6 +63,9 @@ public class InvokeExecutableCommand : Cmdlet
     )]
     public string WorkingDirectory { get; set; } = string.Empty;
 
+    /// <summary>
+    /// 
+    /// </summary>
     public InvokeExecutableCommand() {
         ProcessStartInfo = new ProcessStartInfo {
             CreateNoWindow = true,

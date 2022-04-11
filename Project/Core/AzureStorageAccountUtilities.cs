@@ -3,8 +3,18 @@ using Azure.Storage.Blobs;
 
 namespace ByteTerrace.VirtualMachine.Setup.Core;
 
+/// <summary>
+/// 
+/// </summary>
 public static class AzureStorageAccountUtilities
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <param name="sourceUri"></param>
+    /// <param name="targetFile"></param>
+    /// <param name="tokenCredential"></param>
     [CLSCompliant(isCompliant: false)]
     public static FileInfo DownloadBlob(
         Uri sourceUri,

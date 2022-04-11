@@ -6,7 +6,7 @@ param(
     [string]$TemporaryPath = ''
 );
 
-$localBinaries = @();
+$localBinaries = [Collections.Generic.List[IO.FileInfo]]::new();
 $localDirectoryPath = ('{0}{1}' -f (Get-PSDrive -Name 'Temp').Root, 'bytrc');
 $remoteBinaries = @();
 $remoteBlobBasePath = 'binaries';
@@ -56,21 +56,32 @@ New-Item `
 $remoteBinaries |
     ForEach-Object {
         $fileName = ($_ -Split '/' | Select-Object -Last 1);
-        $localBinaries += Get-AzureStorageBlob `
+        $localBinary = Get-AzureStorageBlob `
             -AccountName $AccountName `
             -LocalFilePath ('{0}/{1}' -f $localDirectoryPath, $fileName) `
             -RemoteBlobPath ('{0}/{1}' -f $remoteBlobBasePath, $_);
+        $localBinaries.Add($localBinary);
     };
 
 $localBinaries |
     ForEach-Object {
         if ($_.Name.EndsWith('.deb')) {
-            Invoke-Executable `
-                -Arguments @(
-                    'dpkg',
-                    '-i',
-                    $_.FullName
-                ) `
-                -FileName 'sudo';
+            if ($true) {
+                Invoke-Executable `
+                    -Arguments @(
+                        'dpkg',
+                        '-i',
+                        $_.FullName
+                    ) `
+                    -FileName 'sudo';
+            }
+            else {
+                Invoke-Executable `
+                    -Arguments @(
+                        '-i',
+                        $_.FullName
+                    ) `
+                    -FileName 'dpkg';
+            }
         }
     };

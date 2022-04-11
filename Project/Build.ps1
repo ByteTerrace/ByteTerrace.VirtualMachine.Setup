@@ -1,44 +1,115 @@
 param(
     [ValidateSet('Debug', 'Release')]
     [string]
-    $Configuration = 'Debug'
+    $Configuration = 'Release',
+    [ValidateSet('net6.0', 'net7.0')]
+    [string]
+    $Framework = 'net6.0',
+    [string]
+    $ModuleName = 'ByteTerrace.VirtualMachine.Setup',
+    [ValidateSet('Detailed', 'Diagnostic', 'Minimal', 'Normal', 'Quiet')]
+    [string]
+    $Verbosity = 'Minimal'
 );
 
-$netCore = 'net6.0';
-$outPath = "$PSScriptRoot/bin/ByteTerrace.VirtualMachine.Setup";
-$commonPath = "$outPath/Common";
-$mainPath = "$outPath/Main";
+$ErrorActionPreference = [Management.Automation.ActionPreference]::Stop;
 
-if (Test-Path $outPath) {
-    Remove-Item -Path $outPath -Recurse;
+function Invoke-DotNetPublish(
+    [string] $configuration,
+    [string] $framework,
+    [string] $workingDirectory
+) {
+    Push-Location -Path $workingDirectory;
+
+    try {
+        dotnet restore `
+            --verbosity $Verbosity;
+
+        Test-LastExitCode;
+
+        dotnet build `
+            --configuration $Configuration `
+            --framework $Framework `
+            --nologo `
+            --no-dependencies `
+            --no-restore `
+            --verbosity $Verbosity;
+
+        Test-LastExitCode;
+
+        dotnet publish `
+            --configuration $Configuration `
+            --framework $Framework `
+            --nologo `
+            --no-build `
+            --no-restore `
+            --verbosity $Verbosity;
+
+        Test-LastExitCode;
+    }
+    finally {
+        Pop-Location;
+    }
+}
+function Test-LastExitCode {
+    [CmdletBinding()]
+    param();
+
+    process {
+        if (0 -ne $LASTEXITCODE) {
+            Write-Error 'Something happened =(.';
+        }
+    }
 }
 
-New-Item -Path $outPath -ItemType Directory;
-New-Item -Path $commonPath -ItemType Directory;
-New-Item -Path $mainPath -ItemType Directory;
-Push-Location "$PSScriptRoot/Core";
+$binariesPath = "$PSScriptRoot/bin/$ModuleName";
+$cmdletsProjectPath = "$PSScriptRoot/Cmdlets";
+$commonPath = "$binariesPath/Common";
+$coreProjectPath = "$PSScriptRoot/Core";
+$mainPath = "$binariesPath/Main";
+$processedPaths = [Collections.Generic.HashSet[string]]::new();
 
-try {
-    dotnet publish -f $netCore;
-}
-finally {
-    Pop-Location;
-}
-
-Push-Location "$PSScriptRoot/Cmdlets";
-
-try {
-    dotnet publish -f $netCore;
-}
-finally {
-    Pop-Location;
+if (Test-Path -Path $binariesPath) {
+    Remove-Item `
+        -Path $binariesPath `
+        -Recurse;
 }
 
-$commonFiles = [System.Collections.Generic.HashSet[string]]::new();
-Copy-Item -Path "$PSScriptRoot/ByteTerrace.VirtualMachine.Setup.psd1" -Destination $outPath;
-Get-ChildItem -Path "$PSScriptRoot/Core/bin/$Configuration/$netCore/publish" |
-    Where-Object { $_.Extension -in '.dll','.pdb' } |
-    ForEach-Object { [void]$commonFiles.Add($_.Name); Copy-Item -LiteralPath $_.FullName -Destination $commonPath };
-Get-ChildItem -Path "$PSScriptRoot/Cmdlets/bin/$Configuration/$netCore/publish" |
-    Where-Object { $_.Extension -in '.dll','.pdb' -and -not $commonFiles.Contains($_.Name) } |
-    ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $mainPath };
+New-Item `
+    -ItemType 'Directory' `
+    -Path $binariesPath;
+New-Item `
+    -ItemType 'Directory' `
+    -Path $commonPath;
+New-Item `
+    -ItemType 'Directory' `
+    -Path $mainPath;
+
+Invoke-DotNetPublish `
+    -Configuration $Configuration `
+    -Framework $Framework `
+    -WorkingDirectory $coreProjectPath;
+Invoke-DotNetPublish `
+    -Configuration $Configuration `
+    -Framework $Framework `
+    -WorkingDirectory $cmdletsProjectPath;
+Copy-Item `
+    -Destination $binariesPath `
+    -Path "$PSScriptRoot/$ModuleName.psd1";
+Get-ChildItem `
+    -Path "$coreProjectPath/bin/$Configuration/$Framework/publish" |
+    Where-Object { ($_.Extension -in @('.dll', '.pdb')) } |
+    ForEach-Object {
+        [void]$processedPaths.Add($_.Name);
+        Copy-Item `
+            -Destination $commonPath `
+            -LiteralPath $_.FullName;
+    };
+Get-ChildItem `
+    -Path "$cmdletsProjectPath/bin/$Configuration/$Framework/publish" |
+    Where-Object { (($_.Extension -in @('.dll', '.pdb')) -and (-not $processedPaths.Contains($_.Name))) } |
+    ForEach-Object {
+        Copy-Item `
+            -Destination $mainPath `
+            -LiteralPath $_.FullName;
+    };
