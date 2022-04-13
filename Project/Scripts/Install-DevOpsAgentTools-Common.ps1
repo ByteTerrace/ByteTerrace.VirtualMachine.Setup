@@ -74,6 +74,40 @@ if ($IsLinux) {
         @{
             Path = 'DotNet/6/dotnet-sdk-6.0.201-x64.deb';
         },
+        # Java
+        @{
+            Path = 'a/alsa-lib/1/libasound2-data_1.1.3-5ubuntu0.6_all.deb';
+        },
+        @{
+            Path = 'j/java-common/0/java-common_0.68ubuntu1~18.04.1_all.deb';
+        },
+        @{
+            Path = 'a/alsa-lib/1/libasound2_1.1.3-5ubuntu0.6_amd64.deb';
+        },
+        @{
+            Path = 'p/p11-kit/0/p11-kit-modules_0.23.9-2ubuntu0.1_amd64.deb';
+        },
+        @{
+            Path = 'f/fonts-dejavu/2/fonts-dejavu-extra_2.37-1_all.deb';
+        },
+        @{
+            Path = 'f/fonts-dejavu/2/fonts-dejavu_2.37-1_all.deb';
+        },
+        @{
+            Path = 'p/p11-kit/0/p11-kit_0.23.9-2ubuntu0.1_amd64.deb';
+        },
+        @{
+            Path = 'a/adoptium-ca-certificates/1/adoptium-ca-certificates_1.0.0-1_all.deb';
+        },
+        @{
+            Path = 't/openjdk-temurin/8/temurin-8-jdk_8.0.322.0.0+6-1_amd64.deb';
+        },
+        @{
+            Path = 't/openjdk-temurin/11/temurin-11-jdk_11.0.14.1.0+9-1_arm64.deb';
+        },
+        @{
+            Path = 't/openjdk-temurin/17/temurin-17-jdk_17.0.2.0.0+8-1_amd64.deb';
+        },
         # Moby
         @{
             Path = 'MobyEngine/20/moby-buildx_0.8.1+azure-1_amd64.deb';
@@ -106,6 +140,10 @@ if ($IsLinux) {
         # Packer
         @{
             Path = 'Packer/1/packer_1.8.0_amd64.deb';
+        },
+        # Terraform
+        @{
+            Path = 'Terraform/1/terraform_1.1.8_amd64.deb';
         },
         # Podman
         @{
@@ -159,9 +197,13 @@ if ($IsLinux) {
         @{
             Path = 'Podman/3/podman_3.0.1-2_amd64.deb';
         },
-        # Terraform
+        # Buildah
         @{
-            Path = 'Terraform/1/terraform_1.1.8_amd64.deb';
+            Path = 'Buildah/1/buildah_1.19.6-2_amd64.deb';
+        },
+        # Skopeo
+        @{
+            Path = 'Skopeo/1/skopeo_1.2.2-2_amd64.deb';
         }
     );
 }
