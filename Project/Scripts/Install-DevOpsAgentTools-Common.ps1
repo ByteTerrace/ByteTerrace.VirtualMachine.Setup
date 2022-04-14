@@ -18,6 +18,8 @@ if (-not([string]::IsNullOrEmpty($TemporaryPath))) {
 }
 
 if ($IsLinux) {
+    [System.Environment]::SetEnvironmentVariable('ACCEPT_EULA', 'Y');
+
     $remoteBinaries = @(
         # Python 2
         @{
@@ -138,10 +140,12 @@ if ($IsLinux) {
             Path = 'u/unixodbc/2/libodbc1_2.3.7_amd64.deb';
         },
         @{
-            Path = 'u/unixodbc/2/odbcinst1debian2_2.3.7_amd64.deb';
-        },
-        @{
-            Path = 'u/unixodbc/2/odbcinst_2.3.7_amd64.deb';
+            Arguments = @('-i', ('{0}/odbcinst_2.3.7_amd64.deb' -f $localDirectoryPath), ('{0}/odbcinst1debian2_2.3.7_amd64.deb' -f $localDirectoryPath));
+            Command = 'dpkg';
+            Paths = @(
+                'u/unixodbc/2/odbcinst_2.3.7_amd64.deb',
+                'u/unixodbc/2/odbcinst1debian2_2.3.7_amd64.deb'
+            );
         },
         @{
             Path = 'u/unixodbc/2/unixodbc_2.3.7_amd64.deb';
@@ -292,54 +296,86 @@ New-Item `
 
 $remoteBinaries |
     ForEach-Object {
-        $azureStorageBlobParams = @{
-            AccountName = $AccountName;
-            LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, ($_.Path -Split '/' | Select-Object -Last 1));
-            RemoteBlobPath = ('{0}/{1}' -f $remoteBlobBasePath, $_.Path);
-        };
+        if ($null -eq $_.Command) {
+            $azureStorageBlobParams = @{
+                AccountName = $AccountName;
+                LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, ($_.Path -Split '/' | Select-Object -Last 1));
+                RemoteBlobPath = ('{0}/{1}' -f $remoteBlobBasePath, $_.Path);
+            };
 
-        if ($Force) {
-            $azureStorageBlobParams.Force = $true;
+            if ($Force) {
+                $azureStorageBlobParams.Force = $true;
+            }
+
+            $localBinaries.Add(@{
+                Arguments = $_.Arguments;
+                FileInfo = Get-AzureStorageBlob @azureStorageBlobParams;
+            });
         }
+        else {
+            $localBinaries.Add(@{
+                Arguments = $_.Arguments;
+                Command = $_.Command;
+            });
 
-        $localBinaries.Add(@{
-            Arguments = $_.Arguments;
-            FileInfo = Get-AzureStorageBlob @azureStorageBlobParams;
-        });
+            $_.Paths |
+                ForEach-Object {
+                    $azureStorageBlobParams = @{
+                        AccountName = $AccountName;
+                        LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, ($_ -Split '/' | Select-Object -Last 1));
+                        RemoteBlobPath = ('{0}/{1}' -f $remoteBlobBasePath, $_);
+                    };
+
+                    if ($Force) {
+                        $azureStorageBlobParams.Force = $true;
+                    }
+
+                    Get-AzureStorageBlob @azureStorageBlobParams |
+                        Out-Null;
+                };
+        }
     };
 
 $localBinaries |
     ForEach-Object {
         $arguments = ([Collections.Generic.List[string]]$_.Arguments);
-        $fileInfo = $_.FileInfo;
 
         if ($null -eq $arguments) {
             $arguments = [Collections.Generic.List[string]]::new();
         }
 
-        switch ($fileInfo.Name) {
-            { $_.EndsWith('.deb') } {
-                $arguments.Add('-i');
-                $arguments.Add($fileInfo.FullName);
+        if ($null -eq $_.Command) {
+            $fileInfo = $_.FileInfo;
 
-                Invoke-Executable `
-                    -Arguments $arguments `
-                    -FileName 'dpkg';
-            }
-            { $_.EndsWith('.exe') } {
-                Invoke-Executable `
-                    -Arguments $arguments `
-                    -FileName $fileInfo.FullName;
-            }
-            { $_.EndsWith('.msi') } {
-                $arguments.Add('/i');
-                $arguments.Add($fileInfo.FullName);
-                $arguments.Add('/norestart');
-                $arguments.Add('/qn');
+            switch ($fileInfo.Name) {
+                { $_.EndsWith('.deb') } {
+                    $arguments.Add('-i');
+                    $arguments.Add($fileInfo.FullName);
 
-                Invoke-Executable `
-                    -Arguments $arguments `
-                    -FileName 'msiexec.exe';
+                    Invoke-Executable `
+                        -Arguments $arguments `
+                        -FileName 'dpkg';
+                }
+                { $_.EndsWith('.exe') } {
+                    Invoke-Executable `
+                        -Arguments $arguments `
+                        -FileName $fileInfo.FullName;
+                }
+                { $_.EndsWith('.msi') } {
+                    $arguments.Add('/i');
+                    $arguments.Add($fileInfo.FullName);
+                    $arguments.Add('/norestart');
+                    $arguments.Add('/qn');
+
+                    Invoke-Executable `
+                        -Arguments $arguments `
+                        -FileName 'msiexec.exe';
+                }
             }
+        }
+        else {
+            Invoke-Executable `
+                -Arguments $arguments `
+                -FileName $_.Command;
         }
     };
