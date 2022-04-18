@@ -17,9 +17,10 @@ if (-not([string]::IsNullOrEmpty($TemporaryPath))) {
     $localDirectoryPath = $TemporaryPath;
 }
 
-if ($IsLinux) {
-    [System.Environment]::SetEnvironmentVariable('ACCEPT_EULA', 'Y');
+[System.Environment]::SetEnvironmentVariable('ACCEPT_EULA', 'Y');
+[System.Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', '1');
 
+if ($IsLinux) {
     $remoteBinaries = @(
         # Python 2
         @{
@@ -140,7 +141,11 @@ if ($IsLinux) {
             Path = 'u/unixodbc/2/libodbc1_2.3.7_amd64.deb';
         },
         @{
-            Arguments = @('-i', ('{0}/odbcinst_2.3.7_amd64.deb' -f $localDirectoryPath), ('{0}/odbcinst1debian2_2.3.7_amd64.deb' -f $localDirectoryPath));
+            Arguments = @(
+                '-i',
+                ('{0}/odbcinst_2.3.7_amd64.deb' -f $localDirectoryPath),
+                ('{0}/odbcinst1debian2_2.3.7_amd64.deb' -f $localDirectoryPath)
+            );
             Command = 'dpkg';
             Paths = @(
                 'u/unixodbc/2/odbcinst_2.3.7_amd64.deb',
