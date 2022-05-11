@@ -38,6 +38,19 @@ if ($IsLinux) {
         @{
             Path = 'p/python/2/python-minimal_2.7.15~rc1-1_amd64.deb';
         },
+        # Python 3
+        @{
+            Path = 'p/python/3/libpython3.8-minimal_3.8.0-3ubuntu1~18.04.2_amd64.deb';
+        },
+        @{
+            Path = 'p/python/3/python3.8-minimal_3.8.0-3ubuntu1~18.04.2_amd64.deb';
+        },
+        @{
+            Path = 'p/python/3/libpython3.8-stdlib_3.8.0-3ubuntu1~18.04.2_amd64.deb';
+        },
+        @{
+            Path = 'p/python/3/python3.8_3.8.0-3ubuntu1~18.04.2_amd64.deb';
+        }
         # Node 16
         @{
             Path = 'n/nodejs/16/nodejs_16.14.2-1nodesource1_amd64.deb';
