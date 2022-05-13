@@ -18,8 +18,9 @@ if (-not([string]::IsNullOrEmpty($TemporaryPath))) {
 }
 
 [System.Environment]::SetEnvironmentVariable('ACCEPT_EULA', 'Y');
+[System.Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', '/agent/_work/_tool');
 [System.Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', '1');
-
+ 
 if ($IsLinux) {
     $remoteBinaries = @(
         # Python 2
@@ -49,8 +50,42 @@ if ($IsLinux) {
             Path = 'p/python/3/libpython3.8-stdlib_3.8.0-3ubuntu1~18.04.2_amd64.deb';
         },
         @{
+            Path = 'p/python/3/libpython3.8_3.8.0-3ubuntu1~18.04.2_amd64.deb';
+        },
+        @{
+            Path = 'l/linux/4/linux-libc-dev_4.15.0-177.186_amd64.deb';
+        },
+        @{
+            Path = 'g/glibc/2/libc-dev-bin_2.27-3ubuntu1.5_amd64.deb';
+        },
+        @{
+            Path = 'g/glibc/2/libc6-dev_2.27-3ubuntu1.5_amd64.deb';
+        },
+        @{
+            Path = 'e/expat/2/libexpat1-dev_2.2.5-3ubuntu0.7_amd64.deb';
+        },
+        @{
+            Path = 'm/manpages/4/manpages-dev_4.15-1_all.deb';
+        },
+        @{
+            Path = 'p/python/3/libpython3.8-dev_3.8.0-3ubuntu1~18.04.2_amd64.deb';
+        },
+        @{
             Path = 'p/python/3/python3.8_3.8.0-3ubuntu1~18.04.2_amd64.deb';
         }
+        @{
+            Commands = @(
+                @{
+                    Value = ('tar -xzf {0}/python-3.8.12-linux-18.04-x64.tar.gz' -f $localDirectoryPath);
+                },
+                @{
+                    Value = 'bash ./setup.sh';
+                }
+            );
+            Paths = @('p/python/3/python-3.8.12-linux-18.04-x64.tar.gz');
+            Type = 'Invoke-Expression';
+            WorkingDirectory = ('{0}/Python/3.8.12/x64' -f $localDirectoryPath);
+        },
         # Node 16
         @{
             Path = 'n/nodejs/16/nodejs_16.14.2-1nodesource1_amd64.deb';
@@ -154,12 +189,16 @@ if ($IsLinux) {
             Path = 'u/unixodbc/2/libodbc1_2.3.7_amd64.deb';
         },
         @{
-            Arguments = @(
-                '-i',
-                ('{0}/odbcinst_2.3.7_amd64.deb' -f $localDirectoryPath),
-                ('{0}/odbcinst1debian2_2.3.7_amd64.deb' -f $localDirectoryPath)
+            Commands = @(
+                @{
+                    Arguments = @(
+                        '-i',
+                        ('{0}/odbcinst_2.3.7_amd64.deb' -f $localDirectoryPath),
+                        ('{0}/odbcinst1debian2_2.3.7_amd64.deb' -f $localDirectoryPath)
+                    );
+                    Value = 'dpkg';
+                }
             );
-            Command = 'dpkg';
             Paths = @(
                 'u/unixodbc/2/odbcinst_2.3.7_amd64.deb',
                 'u/unixodbc/2/odbcinst1debian2_2.3.7_amd64.deb'
@@ -314,7 +353,7 @@ New-Item `
 
 $remoteBinaries |
     ForEach-Object {
-        if ($null -eq $_.Command) {
+        if ($null -eq $_.Commands) {
             $azureStorageBlobParams = @{
                 AccountName = $AccountName;
                 LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, ($_.Path -Split '/' | Select-Object -Last 1));
@@ -332,8 +371,9 @@ $remoteBinaries |
         }
         else {
             $localBinaries.Add(@{
-                Arguments = $_.Arguments;
-                Command = $_.Command;
+                Commands = $_.Commands;
+                Type = $_.Type;
+                WorkingDirectory = $_.WorkingDirectory;
             });
 
             $_.Paths |
@@ -356,14 +396,13 @@ $remoteBinaries |
 
 $localBinaries |
     ForEach-Object {
-        $arguments = ([Collections.Generic.List[string]]$_.Arguments);
-
-        if ($null -eq $arguments) {
-            $arguments = [Collections.Generic.List[string]]::new();
-        }
-
-        if ($null -eq $_.Command) {
+        if ($null -eq $_.Commands) {
+            $arguments = ([Collections.Generic.List[string]]$_.Arguments);
             $fileInfo = $_.FileInfo;
+
+            if ($null -eq $arguments) {
+                $arguments = [Collections.Generic.List[string]]::new();
+            }
 
             switch ($fileInfo.Name) {
                 { $_.EndsWith('.deb') } {
@@ -392,8 +431,33 @@ $localBinaries |
             }
         }
         else {
-            Invoke-Executable `
-                -Arguments $arguments `
-                -FileName $_.Command;
+            if ('Invoke-Expression' -eq $_.Type) {
+                if ($null -ne $_.WorkingDirectory) {
+                    New-Item `
+                        -Force `
+                        -Path $_.WorkingDirectory `
+                        -Type 'Directory' |
+                        Out-Null;
+                    Push-Location -Path $_.WorkingDirectory;
+                }
+
+                $_.Commands |
+                    ForEach-Object {
+                        Invoke-Expression `
+                            -Command $_.Value;
+                    };
+
+                if ($null -ne $_.WorkingDirectory) {
+                    Pop-Location;
+                }
+            }
+            else {
+                $_.Commands |
+                    ForEach-Object {
+                        Invoke-Executable `
+                            -Arguments $_.Arguments `
+                            -FileName $_.Value;
+                    };
+            }
         }
     };
