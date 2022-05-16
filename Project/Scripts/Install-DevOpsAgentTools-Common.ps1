@@ -102,6 +102,12 @@ if ($IsLinux) {
             Type = 'CachedTool';
             WorkingDirectory = ('{0}/node/18.1.0/x64' -f $localDirectoryPath);
         },
+        # PowerShell Az Module
+        @{
+            Name = 'Az'
+            Path = 'p/powershell/modules/az/7/az_7.5.0.zip';
+            Type = 'PowerShellModule';
+        },
         # Azure CLI 2
         @{
             Path = 'a/azure-cli/2/azure-cli_2.34.1-1~bionic_all.deb';
@@ -369,7 +375,7 @@ $remoteBinaries |
         $remoteBinary = $_;
 
         switch ($remoteBinary.Type) {
-            'CachedTool' {
+            { @('CachedTool', 'PowerShellModule') -contains $_ } {
                 $azureStorageBlobParams = @{
                     AccountName = $AccountName;
                     LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, (Split-Path $remoteBinary.Path -Leaf));
@@ -381,6 +387,7 @@ $remoteBinaries |
                 }
 
                 $localBinaries.Add(@{
+                    Name = $remoteBinary.Name;
                     Path = $azureStorageBlobParams.LocalFilePath;
                     Type = $remoteBinary.Type;
                     WorkingDirectory = $remoteBinary.WorkingDirectory;
@@ -465,6 +472,15 @@ $localBinaries |
                             -Arguments $_.Arguments `
                             -FileName $_.Value;
                     };
+            }
+            'PowerShellModule' {
+                Expand-Archive `
+                    -DestinationPath '/opt/microsoft/powershell/7-lts/Modules' `
+                    -Path $localBinary.Path |
+                    Out-Null;
+                Move-Item `
+                    -Destination ('/opt/microsoft/powershell/7-lts/Modules/{0}' -f $localBinary.Name) `
+                    -Path ('/opt/microsoft/powershell/7-lts/Modules/{0}' -f [IO.Path]::GetFileNameWithoutExtension($localBinary.Path));
             }
             default {
                 $arguments = ([Collections.Generic.List[string]]$localBinary.Arguments);
