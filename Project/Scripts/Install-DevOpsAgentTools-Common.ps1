@@ -72,23 +72,35 @@ if ($IsLinux) {
         },
         @{
             Path = 'p/python/3/python3.8_3.8.0-3ubuntu1~18.04.2_amd64.deb';
-        }
+        },
         @{
-            Commands = @(
-                @{
-                    Value = ('tar -xzf {0}/python-3.8.12-linux-18.04-x64.tar.gz' -f $localDirectoryPath);
-                },
-                @{
-                    Value = 'bash ./setup.sh';
-                }
-            );
-            Paths = @('p/python/3/python-3.8.12-linux-18.04-x64.tar.gz');
-            Type = 'Invoke-Expression';
+            Path = 'p/python/3/python-3.8.12-linux-18.04-x64.tar.gz';
+            Type = 'CachedTool';
             WorkingDirectory = ('{0}/Python/3.8.12/x64' -f $localDirectoryPath);
+        },
+        # Node 12
+        @{
+            Path = 'n/nodejs/12/node-12.22.12-linux-x64.tar.gz';
+            Type = 'CachedTool';
+            WorkingDirectory = ('{0}/node/12.22.12/x64' -f $localDirectoryPath);
+        },
+        # Node 14
+        @{
+            Path = 'n/nodejs/14/node-14.19.2-linux-x64.tar.gz';
+            Type = 'CachedTool';
+            WorkingDirectory = ('{0}/node/14.19.2/x64' -f $localDirectoryPath);
         },
         # Node 16
         @{
-            Path = 'n/nodejs/16/nodejs_16.14.2-1nodesource1_amd64.deb';
+            Path = 'n/nodejs/16/node-16.15.0-linux-x64.tar.gz';
+            Type = 'CachedTool';
+            WorkingDirectory = ('{0}/node/16.15.0/x64' -f $localDirectoryPath);
+        },
+        # Node 18
+        @{
+            Path = 'n/nodejs/18/node-18.1.0-linux-x64.tar.gz';
+            Type = 'CachedTool';
+            WorkingDirectory = ('{0}/node/18.1.0/x64' -f $localDirectoryPath);
         },
         # Azure CLI 2
         @{
@@ -203,6 +215,7 @@ if ($IsLinux) {
                 'u/unixodbc/2/odbcinst_2.3.7_amd64.deb',
                 'u/unixodbc/2/odbcinst1debian2_2.3.7_amd64.deb'
             );
+            Type = 'Executable'
         },
         @{
             Path = 'u/unixodbc/2/unixodbc_2.3.7_amd64.deb';
@@ -353,111 +366,139 @@ New-Item `
 
 $remoteBinaries |
     ForEach-Object {
-        if ($null -eq $_.Commands) {
-            $azureStorageBlobParams = @{
-                AccountName = $AccountName;
-                LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, ($_.Path -Split '/' | Select-Object -Last 1));
-                RemoteBlobPath = ('{0}/{1}' -f $remoteBlobBasePath, $_.Path);
-            };
+        $remoteBinary = $_;
 
-            if ($Force) {
-                $azureStorageBlobParams.Force = $true;
-            }
-
-            $localBinaries.Add(@{
-                Arguments = $_.Arguments;
-                FileInfo = Get-AzureStorageBlob @azureStorageBlobParams;
-            });
-        }
-        else {
-            $localBinaries.Add(@{
-                Commands = $_.Commands;
-                Type = $_.Type;
-                WorkingDirectory = $_.WorkingDirectory;
-            });
-
-            $_.Paths |
-                ForEach-Object {
-                    $azureStorageBlobParams = @{
-                        AccountName = $AccountName;
-                        LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, ($_ -Split '/' | Select-Object -Last 1));
-                        RemoteBlobPath = ('{0}/{1}' -f $remoteBlobBasePath, $_);
-                    };
-
-                    if ($Force) {
-                        $azureStorageBlobParams.Force = $true;
-                    }
-
-                    Get-AzureStorageBlob @azureStorageBlobParams |
-                        Out-Null;
+        switch ($remoteBinary.Type) {
+            'CachedTool' {
+                $azureStorageBlobParams = @{
+                    AccountName = $AccountName;
+                    LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, (Split-Path $remoteBinary.Path -Leaf));
+                    RemoteBlobPath = ('{0}/{1}' -f $remoteBlobBasePath, $remoteBinary.Path);
                 };
+
+                if ($Force) {
+                    $azureStorageBlobParams.Force = $true;
+                }
+
+                $localBinaries.Add(@{
+                    Path = $azureStorageBlobParams.LocalFilePath;
+                    Type = $remoteBinary.Type;
+                    WorkingDirectory = $remoteBinary.WorkingDirectory;
+                });
+
+                Write-Host $remoteBinary.Path;
+                Get-AzureStorageBlob @azureStorageBlobParams |
+                    Out-Null;
+            }
+            'Executable' {
+                $localBinaries.Add(@{
+                    Commands = $remoteBinary.Commands;
+                    Type = $remoteBinary.Type;
+                    WorkingDirectory = $remoteBinary.WorkingDirectory;
+                });
+
+                $remoteBinary.Paths |
+                    ForEach-Object {
+                        $azureStorageBlobParams = @{
+                            AccountName = $AccountName;
+                            LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, (Split-Path $_ -Leaf));
+                            RemoteBlobPath = ('{0}/{1}' -f $remoteBlobBasePath, $_);
+                        };
+
+                        if ($Force) {
+                            $azureStorageBlobParams.Force = $true;
+                        }
+
+                        Write-Host $_;
+                        Get-AzureStorageBlob @azureStorageBlobParams |
+                            Out-Null;
+                    };
+            }
+            default {
+                $azureStorageBlobParams = @{
+                    AccountName = $AccountName;
+                    LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, (Split-Path $remoteBinary.Path -Leaf));
+                    RemoteBlobPath = ('{0}/{1}' -f $remoteBlobBasePath, $remoteBinary.Path);
+                };
+
+                if ($Force) {
+                    $azureStorageBlobParams.Force = $true;
+                }
+
+                Write-Host $remoteBinary.Path;
+                $localBinaries.Add(@{
+                    Arguments = $remoteBinary.Arguments;
+                    FileInfo = Get-AzureStorageBlob @azureStorageBlobParams;
+                });
+            }
         }
     };
 
 $localBinaries |
     ForEach-Object {
-        if ($null -eq $_.Commands) {
-            $arguments = ([Collections.Generic.List[string]]$_.Arguments);
-            $fileInfo = $_.FileInfo;
+        $localBinary = $_;
 
-            if ($null -eq $arguments) {
-                $arguments = [Collections.Generic.List[string]]::new();
-            }
-
-            switch ($fileInfo.Name) {
-                { $_.EndsWith('.deb') } {
-                    $arguments.Add('-i');
-                    $arguments.Add($fileInfo.FullName);
-
-                    Invoke-Executable `
-                        -Arguments $arguments `
-                        -FileName 'dpkg';
-                }
-                { $_.EndsWith('.exe') } {
-                    Invoke-Executable `
-                        -Arguments $arguments `
-                        -FileName $fileInfo.FullName;
-                }
-                { $_.EndsWith('.msi') } {
-                    $arguments.Add('/i');
-                    $arguments.Add($fileInfo.FullName);
-                    $arguments.Add('/norestart');
-                    $arguments.Add('/qn');
-
-                    Invoke-Executable `
-                        -Arguments $arguments `
-                        -FileName 'msiexec.exe';
-                }
-            }
-        }
-        else {
-            if ('Invoke-Expression' -eq $_.Type) {
-                if ($null -ne $_.WorkingDirectory) {
+        switch ($localBinary.Type) {
+            'CachedTool' {
+                if ($null -ne $localBinary.WorkingDirectory) {
                     New-Item `
                         -Force `
-                        -Path $_.WorkingDirectory `
+                        -Path $localBinary.WorkingDirectory `
                         -Type 'Directory' |
                         Out-Null;
-                    Push-Location -Path $_.WorkingDirectory;
+                    Push-Location -Path $localBinary.WorkingDirectory;
                 }
 
-                $_.Commands |
-                    ForEach-Object {
-                        Invoke-Expression `
-                            -Command $_.Value;
-                    };
+                Invoke-Expression `
+                    -Command ('tar -xzf ''{0}''' -f $localBinary.Path);
+                Invoke-Expression `
+                    -Command 'bash ./setup.sh';
 
-                if ($null -ne $_.WorkingDirectory) {
+                if ($null -ne $localBinary.WorkingDirectory) {
                     Pop-Location;
                 }
             }
-            else {
-                $_.Commands |
+            'Executable' {
+                $localBinary.Commands |
                     ForEach-Object {
                         Invoke-Executable `
                             -Arguments $_.Arguments `
                             -FileName $_.Value;
                     };
+            }
+            default {
+                $arguments = ([Collections.Generic.List[string]]$localBinary.Arguments);
+                $fileInfo = $localBinary.FileInfo;
+
+                if ($null -eq $arguments) {
+                    $arguments = [Collections.Generic.List[string]]::new();
+                }
+
+                switch ($fileInfo.Name) {
+                    { $_.EndsWith('.deb') } {
+                        $arguments.Add('-i');
+                        $arguments.Add($fileInfo.FullName);
+
+                        Invoke-Executable `
+                            -Arguments $arguments `
+                            -FileName 'dpkg';
+                    }
+                    { $_.EndsWith('.exe') } {
+                        Invoke-Executable `
+                            -Arguments $arguments `
+                            -FileName $fileInfo.FullName;
+                    }
+                    { $_.EndsWith('.msi') } {
+                        $arguments.Add('/i');
+                        $arguments.Add($fileInfo.FullName);
+                        $arguments.Add('/norestart');
+                        $arguments.Add('/qn');
+
+                        Invoke-Executable `
+                            -Arguments $arguments `
+                            -FileName 'msiexec.exe';
+                    }
+                }
             }
         }
     };
