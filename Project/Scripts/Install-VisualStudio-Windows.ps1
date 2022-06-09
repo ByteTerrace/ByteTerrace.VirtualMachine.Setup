@@ -1,5 +1,7 @@
 [CmdletBinding()]
 param(
+    [Parameter(Mandatory = $false)]
+    [string]$ConfigurationFilePath = '',
     [Parameter(Mandatory = $true)]
     [ValidateSet('BuildTools', 'Enterprise', 'Professional')]
     [string]$Edition,
@@ -13,14 +15,12 @@ param(
     [string]$Version = '17.2.3'
 );
 
-$localDirectoryPath = $TemporaryPath;
-
 if ([string]::Empty -eq $Nickname) {
     $Nickname = ('BYTRC{0}{1}' -f $Version.Split('.')[0], $Edition[0]);
 }
 
 if ([string]::IsNullOrEmpty($TemporaryPath)) {
-    $localDirectoryPath = Join-Path `
+    $TemporaryPath = Join-Path `
         -ChildPath 'bytrc' `
         -Path (Get-PSDrive -Name 'Temp').Root;
 }
@@ -28,21 +28,25 @@ if ([string]::IsNullOrEmpty($TemporaryPath)) {
 $visualStudioInstallerName = ('vs_{0}_{1}' -f $Edition, $Version);
 $visualStudioInstallerPath = Join-Path `
     -ChildPath $visualStudioInstallerName `
-    -Path $localDirectoryPath;
+    -Path $TemporaryPath;
+
+if ([string]::IsNullOrEmpty($ConfigurationFilePath)) {
+    $ConfigurationFilePath = (Join-Path `
+        -ChildPath 'Response.json' `
+        -Path $visualStudioInstallerPath);
+}
 
 Write-Debug 'Extracting Visual Studio Build Tools installer...';
 
 Expand-Archive `
-    -DestinationPath $localDirectoryPath `
+    -DestinationPath $TemporaryPath `
     -Path (Join-Path `
         -ChildPath ('{0}.zip' -f $visualStudioInstallerName) `
         -Path (Get-Location));
 
 $installerArguments = @(
     '--in'
-    (Join-Path `
-        -ChildPath ('Response.json' -f $visualStudioInstallerName) `
-        -Path $visualStudioInstallerPath),
+    $ConfigurationFilePath,
     '--norestart',
     '--noWeb',
     '--quiet'
