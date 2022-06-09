@@ -18,10 +18,11 @@ if (-not([string]::IsNullOrEmpty($TemporaryPath))) {
 }
 
 [System.Environment]::SetEnvironmentVariable('ACCEPT_EULA', 'Y');
-[System.Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', '/agent/_work/_tool');
 [System.Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', '1');
 
 if ($IsLinux) {
+    [System.Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', '/agent/_work/_tool');
+
     $powerShellModulePath = '/opt/microsoft/powershell/7-lts/Modules';
     $remoteBinaries = @(
         # Python 2
@@ -326,17 +327,106 @@ if ($IsLinux) {
         }
     );
 }
+elseif ($IsWindows) {
+    [System.Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', ('{0}/agent/_work/_tool' -f ${Env:SystemDrive}));
 
-if ($IsWindows) {
     $powerShellModulePath = ('{0}/PowerShell/7/Modules' -f [System.Environment]::GetEnvironmentVariable('ProgramFiles'));
     $remoteBinaries = @(
+        # 7-Zip
+        @{
+            Arguments = @('/S');
+            Path = 's/7zip/20/7z2107-x64.exe';
+        },
+        # Visual Studio Build Tools
+        @{
+            Commands = @(
+                @{
+                    Arguments = @{
+                        Edition = 'BuildTools';
+                    };
+                    Value = ('{0}/Install-VisualStudioLayout-Windows.ps1' -f $localDirectoryPath);
+                }
+            );
+            Paths = @(
+                'v/visual-studio/17/Install-VisualStudioLayout-Windows.ps1',
+                'v/visual-studio/17/vs_BuildTools_17.2.3.zip'
+            );
+            Type = 'PowerShellScript';
+        },
+        # Java 8
+        @{
+            Commands = @(
+                @{
+                    Arguments = @{
+                        Architecture = 'x64';
+                        PackageName = 'OpenJDK8U-jdk_x64_windows_hotspot_8u332b09.zip';
+                        Vendor = 'Temurin-Hotspot';
+                        Version = '8.0.332-9';
+                    };
+                    Value = ('{0}/Install-JavaSdk-Windows.ps1' -f $localDirectoryPath);
+                }
+            );
+            Paths = @(
+                'o/openjdk-temurin/8/OpenJDK8U-jdk_x64_windows_hotspot_8u332b09.zip',
+                'p/powershell/scripts/java/Install-JavaSdk-Windows.ps1'
+            );
+            Type = 'PowerShellScript';
+        },
+        # Java 11
+        @{
+            Commands = @(
+                @{
+                    Arguments = @{
+                        Architecture = 'x64';
+                        PackageName = 'OpenJDK11U-jdk_x64_windows_hotspot_11.0.15_10.zip';
+                        Vendor = 'Temurin-Hotspot';
+                        Version = '11.0.15-10';
+                    };
+                    Value = ('{0}/Install-JavaSdk-Windows.ps1' -f $localDirectoryPath);
+                }
+            );
+            Paths = @(
+                'o/openjdk-temurin/11/OpenJDK11U-jdk_x64_windows_hotspot_11.0.15_10.zip'
+            );
+            Type = 'PowerShellScript';
+        },
+        # Java 17
+        @{
+            Commands = @(
+                @{
+                    Arguments = @{
+                        Architecture = 'x64';
+                        PackageName = 'OpenJDK17U-jdk_x64_windows_hotspot_17.0.3_7.zip';
+                        Vendor = 'Temurin-Hotspot';
+                        Version = '17.0.3-7';
+                    };
+                    Value = ('{0}/Install-JavaSdk-Windows.ps1' -f $localDirectoryPath);
+                }
+            );
+            Paths = @(
+                'o/openjdk-temurin/17/OpenJDK17U-jdk_x64_windows_hotspot_17.0.3_7.zip'
+            );
+            Type = 'PowerShellScript';
+        },
         # Node
         @{
-            Path = 'n/nodejs/16/node-v16.14.2-x64.msi';
+            Path = 'n/nodejs/16/node-v16.15.1-x64.msi';
         },
         # Azure CLI
         @{
-            Path = 'a/azure-cli/2/azure-cli-2.34.1.msi';
+            Path = 'a/azure-cli/2/azure-cli-2.37.0.msi';
+        },
+        # Chrome
+        @{
+            Path = 'c/chrome/100/googlechromestandaloneenterprise64_102.0.5005.115.msi';
+        },
+        # Edge
+        @{
+            Path = 'e/edge/100/MicrosoftEdgeEnterpriseX64_102.0.1245.39.msi';
+        },
+        # Firefox
+        @{
+            Path = 'f/firefox/100/Firefox Setup 101.0.1.msi';
         },
         # Git
         @{
@@ -352,18 +442,30 @@ if ($IsWindows) {
                 '/o:EnableSymLink=Enabled',
                 '/o:PathOption=CmdTools'
             );
-            Path = 'g/git/2/Git-2.35.2-64-bit.exe';
-        }
+            Path = 'g/git/2/Git-2.36.1-64-bit.exe';
+        },
+        # GitHub CLI
+        @{
+            Path = 'g/github-cli/2/gh_2.12.1_windows_amd64.msi';
+        },
         # .NET 6.0
         @{
             Arguments = @('/install', '/norestart', '/quiet');
-            Path = 'd/dotnet/6/dotnet-sdk-6.0.201-win-x64.exe';
+            Path = 'd/dotnet/6/dotnet-sdk-6.0.300-win-x64.exe';
         },
         @{
             Arguments = @('/install', '/norestart', '/quiet');
-            Path = 'd/dotnet/6/aspnetcore-runtime-6.0.3-win-x64.exe';
+            Path = 'd/dotnet/6/dotnet-hosting-6.0.5-win.exe';
+        },
+        @{
+            Path = 'p/python/3/python-3.10.5-win32-x64.zip';
+            Type = 'CachedTool';
+            WorkingDirectory = ('{0}/Python/3.10.5/x64' -f $localDirectoryPath);
         }
     );
+}
+else {
+    throw 'Unsupported Platform';
 }
 
 New-Item `
@@ -399,7 +501,7 @@ $remoteBinaries |
                 Get-AzureStorageBlob @azureStorageBlobParams |
                     Out-Null;
             }
-            'Executable' {
+            { @('Executable', 'PowerShellScript') -contains $_ } {
                 $localBinaries.Add(@{
                     Commands = $remoteBinary.Commands;
                     Type = $remoteBinary.Type;
@@ -458,10 +560,17 @@ $localBinaries |
                     Push-Location -Path $localBinary.WorkingDirectory;
                 }
 
-                Invoke-Expression `
-                    -Command ('tar -xzf ''{0}''' -f $localBinary.Path);
-                Invoke-Expression `
-                    -Command 'bash ./setup.sh';
+                if ($IsLinux) {
+                    Invoke-Expression -Command ('tar -xzf ''{0}''' -f $localBinary.Path);
+                    Invoke-Expression -Command 'bash ./setup.sh';
+                }
+                elseif ($IsWindows) {
+                    Expand-Archive `
+                        -DestinationPath '.' `
+                        -Path $localBinary.Path |
+                        Out-Null;
+                    Invoke-Expression -Command './setup.ps1';
+                }
 
                 if ($null -ne $localBinary.WorkingDirectory) {
                     Pop-Location;
@@ -483,6 +592,14 @@ $localBinaries |
                 Move-Item `
                     -Destination ('{0}/{1}' -f $powerShellModulePath, $localBinary.Name) `
                     -Path ('{0}/{1}' -f $powerShellModulePath, [IO.Path]::GetFileNameWithoutExtension($localBinary.Path));
+            }
+            'PowerShellScript' {
+                $localBinary.Commands |
+                    ForEach-Object {
+                        $arguments = $_.Arguments;
+
+                        & $_.Value @arguments;
+                    };
             }
             default {
                 $arguments = ([Collections.Generic.List[string]]$localBinary.Arguments);
