@@ -19,6 +19,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{03E0D28D-9AF7-47FF-9085-DC8B3A8217A3}"
 	ProjectSection(SolutionItems) = preProject
+		Project\Scripts\Create-VisualStudioLayout-Windows.ps1 = Project\Scripts\Create-VisualStudioLayout-Windows.ps1
 		Project\Scripts\Install-DevOpsAgentTools-Common.ps1 = Project\Scripts\Install-DevOpsAgentTools-Common.ps1
 		Project\Scripts\Install-DevOpsAgentTools-Linux.sh = Project\Scripts\Install-DevOpsAgentTools-Linux.sh
 	EndProjectSection

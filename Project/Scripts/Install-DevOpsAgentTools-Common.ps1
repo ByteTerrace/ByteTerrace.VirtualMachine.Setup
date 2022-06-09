@@ -20,8 +20,9 @@ if (-not([string]::IsNullOrEmpty($TemporaryPath))) {
 [System.Environment]::SetEnvironmentVariable('ACCEPT_EULA', 'Y');
 [System.Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', '/agent/_work/_tool');
 [System.Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', '1');
- 
+
 if ($IsLinux) {
+    $powerShellModulePath = '/opt/microsoft/powershell/7-lts/Modules';
     $remoteBinaries = @(
         # Python 2
         @{
@@ -327,6 +328,7 @@ if ($IsLinux) {
 }
 
 if ($IsWindows) {
+    $powerShellModulePath = ('{0}/PowerShell/7/Modules' -f [System.Environment]::GetEnvironmentVariable('ProgramFiles'));
     $remoteBinaries = @(
         # Node
         @{
@@ -475,12 +477,12 @@ $localBinaries |
             }
             'PowerShellModule' {
                 Expand-Archive `
-                    -DestinationPath '/opt/microsoft/powershell/7-lts/Modules' `
+                    -DestinationPath $powerShellModulePath `
                     -Path $localBinary.Path |
                     Out-Null;
                 Move-Item `
-                    -Destination ('/opt/microsoft/powershell/7-lts/Modules/{0}' -f $localBinary.Name) `
-                    -Path ('/opt/microsoft/powershell/7-lts/Modules/{0}' -f [IO.Path]::GetFileNameWithoutExtension($localBinary.Path));
+                    -Destination ('{0}/{1}' -f $powerShellModulePath, $localBinary.Name) `
+                    -Path ('{0}/{1}' -f $powerShellModulePath, [IO.Path]::GetFileNameWithoutExtension($localBinary.Path));
             }
             default {
                 $arguments = ([Collections.Generic.List[string]]$localBinary.Arguments);
