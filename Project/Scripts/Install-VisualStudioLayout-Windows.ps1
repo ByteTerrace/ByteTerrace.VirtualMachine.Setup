@@ -51,10 +51,6 @@ $installerArguments = @(
     '--noWeb',
     '--quiet'
 );
-$installerCommand = Get-Command `
-    -Name (Join-Path `
-        -ChildPath ('{0}.exe' -f $visualStudioInstallerName) `
-        -Path $visualStudioInstallerPath);
 
 if ($null -ne $Nickname) {
     $installerArguments += ('--nickname', $Nickname);
@@ -68,7 +64,10 @@ Write-Debug 'Running Visual Studio Build Tools installer...';
 
 $installerProcess = Start-Process `
     -ArgumentList $installerArguments `
-    -FilePath $installerCommand `
+    -FilePath (Get-Command `
+    -Name (Join-Path `
+        -ChildPath ('{0}.exe' -f $visualStudioInstallerName) `
+        -Path $visualStudioInstallerPath)) `
     -PassThru `
     -Wait;
 $installerExitCode = $installerProcess.ExitCode;
