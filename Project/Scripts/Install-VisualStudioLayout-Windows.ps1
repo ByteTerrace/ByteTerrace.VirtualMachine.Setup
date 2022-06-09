@@ -1,3 +1,9 @@
+<#
+    Reference:
+        https://docs.microsoft.com/en-us/visualstudio/install/create-a-network-installation-of-visual-studio?view=vs-2022
+        https://docs.microsoft.com/en-us/visualstudio/install/use-command-line-parameters-to-install-visual-studio?view=vs-2022
+        https://docs.microsoft.com/en-us/visualstudio/install/workload-and-component-ids?view=vs-2022
+ #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
@@ -33,18 +39,22 @@ $visualStudioInstallerPath = Join-Path `
     -Path $TemporaryPath;
 
 if ([string]::IsNullOrEmpty($ConfigurationFilePath)) {
-    $ConfigurationFilePath = (Join-Path `
-        -ChildPath 'Response.json' `
-        -Path $visualStudioInstallerPath);
+    $ConfigurationFilePath = (
+        Join-Path `
+            -ChildPath 'Response.json' `
+            -Path $visualStudioInstallerPath
+    );
 }
 
 Write-Debug 'Extracting Visual Studio installer...';
 
 Expand-Archive `
     -DestinationPath $TemporaryPath `
-    -Path (Join-Path `
-        -ChildPath ('{0}.zip' -f $visualStudioInstallerName) `
-        -Path (Get-Location));
+    -Path (
+        Join-Path `
+            -ChildPath ('{0}.zip' -f $visualStudioInstallerName) `
+            -Path (Get-Location)
+    );
 
 $installerArguments = @(
     '--in'
@@ -70,10 +80,14 @@ Write-Debug 'Running Visual Studio installer...';
 
 $installerProcess = Start-Process `
     -ArgumentList $installerArguments `
-    -FilePath (Get-Command `
-    -Name (Join-Path `
-        -ChildPath ('{0}.exe' -f $visualStudioInstallerName) `
-        -Path $visualStudioInstallerPath)) `
+    -FilePath (
+        Get-Command `
+            -Name (
+                Join-Path `
+                    -ChildPath ('{0}.exe' -f $visualStudioInstallerName) `
+                    -Path $visualStudioInstallerPath
+            )
+    ) `
     -PassThru `
     -Wait;
 $installerExitCode = $installerProcess.ExitCode;
