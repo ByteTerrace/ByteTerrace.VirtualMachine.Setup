@@ -6,6 +6,8 @@ param(
     [ValidateSet('BuildTools', 'Enterprise', 'Professional')]
     [string]$Edition,
     [Parameter(Mandatory = $false)]
+    [string]$InstallationPath = '',
+    [Parameter(Mandatory = $false)]
     [string]$Nickname = '',
     [Parameter(Mandatory = $false)]
     [string]$ProductKey = '',
@@ -36,7 +38,7 @@ if ([string]::IsNullOrEmpty($ConfigurationFilePath)) {
         -Path $visualStudioInstallerPath);
 }
 
-Write-Debug 'Extracting Visual Studio Build Tools installer...';
+Write-Debug 'Extracting Visual Studio installer...';
 
 Expand-Archive `
     -DestinationPath $TemporaryPath `
@@ -52,6 +54,10 @@ $installerArguments = @(
     '--quiet'
 );
 
+if (-not [string]::IsNullOrEmpty($InstallationPath)) {
+    $installerArguments += ('--installPath', $InstallationPath);
+}
+
 if ($null -ne $Nickname) {
     $installerArguments += ('--nickname', $Nickname);
 }
@@ -60,7 +66,7 @@ if (-not [string]::IsNullOrEmpty($ProductKey)) {
     $installerArguments += ('--productKey', $ProductKey);
 }
 
-Write-Debug 'Running Visual Studio Build Tools installer...';
+Write-Debug 'Running Visual Studio installer...';
 
 $installerProcess = Start-Process `
     -ArgumentList $installerArguments `
@@ -72,7 +78,7 @@ $installerProcess = Start-Process `
     -Wait;
 $installerExitCode = $installerProcess.ExitCode;
 
-Write-Debug 'Removing Visual Studio Build Tools installer...';
+Write-Debug 'Removing Visual Studio installer...';
 
 Remove-Item `
     -Force `
