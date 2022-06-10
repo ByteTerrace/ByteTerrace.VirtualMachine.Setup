@@ -3,7 +3,11 @@ param(
     [Parameter(Mandatory = $false)]
     [string]$AccountName = 'byteterrace',
     [Parameter(Mandatory = $false)]
+    [string]$BlobContainerName = 'binaries',
+    [Parameter(Mandatory = $false)]
     [Management.Automation.SwitchParameter]$Force,
+    [Parameter(Mandatory = $false)]
+    [PSObject[]]$Tasks = @(),
     [Parameter(Mandatory = $false)]
     [string]$TemporaryPath = ''
 );
@@ -97,10 +101,8 @@ function Update-EnvironmentVariables {
     }
 }
 
-$localBinaries = [Collections.Generic.List[PSObject]]::new();
+$internalTasks = [Collections.Generic.List[PSObject]]::new();
 $localDirectoryPath = ('{0}{1}' -f (Get-PSDrive -Name 'Temp').Root, 'bytrc');
-$remoteBinaries = @();
-$remoteBlobBasePath = 'binaries';
 
 if (-not([string]::IsNullOrEmpty($TemporaryPath))) {
     $localDirectoryPath = $TemporaryPath;
@@ -113,7 +115,7 @@ if ($IsLinux) {
     [System.Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', '/agent/_work/_tool');
 
     $powerShellModulePath = '/opt/microsoft/powershell/7-lts/Modules';
-    $remoteBinaries = @(
+    $Tasks += @(
         # Python 2
         @{
             Path = 'p/python/2/libpython2.7-minimal_2.7.17-1~18.04ubuntu1.7_amd64.deb';
@@ -420,11 +422,12 @@ elseif ($IsWindows) {
     [System.Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', ('{0}/agent/_work/_tool' -f ${Env:SystemDrive}));
 
     $powerShellModulePath = ('{0}/PowerShell/7/Modules' -f [System.Environment]::GetEnvironmentVariable('ProgramFiles'));
-    $remoteBinaries = @(
+    $Tasks += @(
         # 7-Zip
         @{
             Arguments = @('/S');
             Path = 's/7zip/20/7z2107-x64.exe';
+            UpdateEnvironmentVariables = $true;
         },
         # Visual Studio Build Tools
         @{
@@ -445,6 +448,7 @@ elseif ($IsWindows) {
         # Azure CLI
         @{
             Path = 'a/azure-cli/2/azure-cli-2.37.0.msi';
+            UpdateEnvironmentVariables = $true;
         },
         # Chrome
         @{
@@ -496,6 +500,7 @@ elseif ($IsWindows) {
                 'p/powershell/scripts/java/Install-JavaSdk-Windows.ps1'
             );
             Type = 'PowerShellScript';
+            UpdateEnvironmentVariables = $true;
         },
         # Java 11
         @{
@@ -514,6 +519,7 @@ elseif ($IsWindows) {
                 'o/openjdk-temurin/11/OpenJDK11U-jdk_x64_windows_hotspot_11.0.15_10.zip'
             );
             Type = 'PowerShellScript';
+            UpdateEnvironmentVariables = $true;
         },
         # Java 17
         @{
@@ -532,6 +538,7 @@ elseif ($IsWindows) {
                 'o/openjdk-temurin/17/OpenJDK17U-jdk_x64_windows_hotspot_17.0.3_7.zip'
             );
             Type = 'PowerShellScript';
+            UpdateEnvironmentVariables = $true;
         },
         # Node
         @{
@@ -578,45 +585,47 @@ New-Item `
     -Type 'Directory' |
     Out-Null;
 
-$remoteBinaries |
+$Tasks |
     ForEach-Object {
-        $remoteBinary = $_;
+        $task = $_;
 
-        switch ($remoteBinary.Type) {
+        switch ($task.Type) {
             { @('CachedTool', 'PowerShellModule') -contains $_ } {
                 $azureStorageBlobParams = @{
                     AccountName = $AccountName;
-                    LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, (Split-Path $remoteBinary.Path -Leaf));
-                    RemoteBlobPath = ('{0}/{1}' -f $remoteBlobBasePath, $remoteBinary.Path);
+                    LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, (Split-Path $task.Path -Leaf));
+                    RemoteBlobPath = ('{0}/{1}' -f $BlobContainerName, $task.Path);
                 };
 
                 if ($Force) {
                     $azureStorageBlobParams.Force = $true;
                 }
 
-                $localBinaries.Add(@{
-                    Name = $remoteBinary.Name;
+                $internalTasks.Add(@{
+                    Name = $task.Name;
                     Path = $azureStorageBlobParams.LocalFilePath;
-                    Type = $remoteBinary.Type;
-                    WorkingDirectory = $remoteBinary.WorkingDirectory;
+                    Type = $task.Type;
+                    UpdateEnvironmentVariables = $task.UpdateEnvironmentVariables;
+                    WorkingDirectory = $task.WorkingDirectory;
                 });
 
-                Write-Host $remoteBinary.Path;
+                Write-Host $task.Path;
                 Get-AzureStorageBlob @azureStorageBlobParams | Out-Null;
             }
             { @('Executable', 'PowerShellScript') -contains $_ } {
-                $localBinaries.Add(@{
-                    Commands = $remoteBinary.Commands;
-                    Type = $remoteBinary.Type;
-                    WorkingDirectory = $remoteBinary.WorkingDirectory;
+                $internalTasks.Add(@{
+                    Commands = $task.Commands;
+                    Type = $task.Type;
+                    UpdateEnvironmentVariables = $task.UpdateEnvironmentVariables;
+                    WorkingDirectory = $task.WorkingDirectory;
                 });
 
-                $remoteBinary.Paths |
+                $task.Paths |
                     ForEach-Object {
                         $azureStorageBlobParams = @{
                             AccountName = $AccountName;
                             LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, (Split-Path $_ -Leaf));
-                            RemoteBlobPath = ('{0}/{1}' -f $remoteBlobBasePath, $_);
+                            RemoteBlobPath = ('{0}/{1}' -f $BlobContainerName, $_);
                         };
                 
                         if ($Force) {
@@ -628,65 +637,66 @@ $remoteBinaries |
                     };
             }
             'PowerShellScript-Inline' {
-                $localBinaries.Add(@{
-                    Commands = $remoteBinary.Commands;
-                    Type = $remoteBinary.Type;
-                    WorkingDirectory = $remoteBinary.WorkingDirectory;
+                $internalTasks.Add(@{
+                    Commands = $task.Commands;
+                    Type = $task.Type;
+                    UpdateEnvironmentVariables = $task.UpdateEnvironmentVariables;
+                    WorkingDirectory = $task.WorkingDirectory;
                 });
             }
             default {
                 $azureStorageBlobParams = @{
                     AccountName = $AccountName;
-                    LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, (Split-Path $remoteBinary.Path -Leaf));
-                    RemoteBlobPath = ('{0}/{1}' -f $remoteBlobBasePath, $remoteBinary.Path);
+                    LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, (Split-Path $task.Path -Leaf));
+                    RemoteBlobPath = ('{0}/{1}' -f $BlobContainerName, $task.Path);
                 };
 
                 if ($Force) {
                     $azureStorageBlobParams.Force = $true;
                 }
 
-                Write-Host $remoteBinary.Path;
-                $localBinaries.Add(@{
-                    Arguments = $remoteBinary.Arguments;
+                Write-Host $task.Path;
+                $internalTasks.Add(@{
+                    Arguments = $task.Arguments;
                     FileInfo = Get-AzureStorageBlob @azureStorageBlobParams;
+                    UpdateEnvironmentVariables = $task.UpdateEnvironmentVariables;
                 });
             }
         }
     };
-
-$localBinaries |
+$internalTasks |
     ForEach-Object {
-        $localBinary = $_;
+        $task = $_;
 
-        switch ($localBinary.Type) {
+        switch ($task.Type) {
             'CachedTool' {
-                if ($null -ne $localBinary.WorkingDirectory) {
+                if ($null -ne $task.WorkingDirectory) {
                     New-Item `
                         -Force `
-                        -Path $localBinary.WorkingDirectory `
+                        -Path $task.WorkingDirectory `
                         -Type 'Directory' |
                         Out-Null;
-                    Push-Location -Path $localBinary.WorkingDirectory;
+                    Push-Location -Path $task.WorkingDirectory;
                 }
 
                 if ($IsLinux) {
-                    Invoke-Expression -Command ('tar -xzf ''{0}''' -f $localBinary.Path);
+                    Invoke-Expression -Command ('tar -xzf ''{0}''' -f $task.Path);
                     Invoke-Expression -Command 'bash ./setup.sh';
                 }
                 elseif ($IsWindows) {
                     Expand-Archive `
                         -DestinationPath '.' `
-                        -Path $localBinary.Path |
+                        -Path $task.Path |
                         Out-Null;
                     Invoke-Expression -Command './setup.ps1';
                 }
 
-                if ($null -ne $localBinary.WorkingDirectory) {
+                if ($null -ne $task.WorkingDirectory) {
                     Pop-Location;
                 }
             }
             'Executable' {
-                $localBinary.Commands |
+                $task.Commands |
                     ForEach-Object {
                         Invoke-Executable `
                             -Arguments $_.Arguments `
@@ -696,14 +706,14 @@ $localBinaries |
             'PowerShellModule' {
                 Expand-Archive `
                     -DestinationPath $powerShellModulePath `
-                    -Path $localBinary.Path |
+                    -Path $task.Path |
                     Out-Null;
                 Move-Item `
-                    -Destination ('{0}/{1}' -f $powerShellModulePath, $localBinary.Name) `
-                    -Path ('{0}/{1}' -f $powerShellModulePath, [IO.Path]::GetFileNameWithoutExtension($localBinary.Path));
+                    -Destination ('{0}/{1}' -f $powerShellModulePath, $task.Name) `
+                    -Path ('{0}/{1}' -f $powerShellModulePath, [IO.Path]::GetFileNameWithoutExtension($task.Path));
             }
             'PowerShellScript' {
-                $localBinary.Commands |
+                $task.Commands |
                     ForEach-Object {
                         $arguments = $_.Arguments;
 
@@ -711,7 +721,7 @@ $localBinaries |
                     };
             }
             'PowerShellScript-Inline' {
-                $localBinary.Commands |
+                $task.Commands |
                     ForEach-Object {
                         Invoke-Command `
                             -ArgumentList $_.Arguments `
@@ -719,8 +729,8 @@ $localBinaries |
                     };
             }
             default {
-                $arguments = ([Collections.Generic.List[string]]$localBinary.Arguments);
-                $fileInfo = $localBinary.FileInfo;
+                $arguments = ([Collections.Generic.List[string]]$task.Arguments);
+                $fileInfo = $task.FileInfo;
 
                 if ($null -eq $arguments) {
                     $arguments = [Collections.Generic.List[string]]::new();
@@ -754,5 +764,7 @@ $localBinaries |
             }
         }
 
-        Update-EnvironmentVariables;
+        if ($task.UpdateEnvironmentVariables) {
+            Update-EnvironmentVariables;
+        }
     };
