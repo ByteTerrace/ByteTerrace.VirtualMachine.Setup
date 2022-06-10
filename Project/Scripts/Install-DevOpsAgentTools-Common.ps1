@@ -353,6 +353,42 @@ elseif ($IsWindows) {
             );
             Type = 'PowerShellScript';
         },
+        # Azure CLI
+        @{
+            Path = 'a/azure-cli/2/azure-cli-2.37.0.msi';
+        },
+        # Chrome
+        @{
+            Path = 'c/chrome/100/googlechromestandaloneenterprise64_102.0.5005.115.msi';
+        },
+        # Edge
+        @{
+            Path = 'e/edge/100/MicrosoftEdgeEnterpriseX64_102.0.1245.39.msi';
+        },
+        # Firefox
+        @{
+            Path = 'f/firefox/100/Firefox Setup 101.0.1.msi';
+        },
+        # Git
+        @{
+            Arguments = @(
+                '/CLOSEAPPLICATIONS',
+                '/COMPONENTS=gitlfs',
+                '/NOCANCEL',
+                '/NORESTART',
+                '/RESTARTAPPLICATIONS',
+                '/SP-',
+                '/VERYSILENT',
+                '/o:BashTerminalOption=ConHost',
+                '/o:EnableSymLink=Enabled',
+                '/o:PathOption=CmdTools'
+            );
+            Path = 'g/git/2/Git-2.36.1-64-bit.exe';
+        },
+        # GitHub CLI
+        @{
+            Path = 'g/github-cli/2/gh_2.12.1_windows_amd64.msi';
+        },
         # Java 8
         @{
             Commands = @(
@@ -412,42 +448,6 @@ elseif ($IsWindows) {
         @{
             Path = 'n/nodejs/16/node-v16.15.1-x64.msi';
         },
-        # Azure CLI
-        @{
-            Path = 'a/azure-cli/2/azure-cli-2.37.0.msi';
-        },
-        # Chrome
-        @{
-            Path = 'c/chrome/100/googlechromestandaloneenterprise64_102.0.5005.115.msi';
-        },
-        # Edge
-        @{
-            Path = 'e/edge/100/MicrosoftEdgeEnterpriseX64_102.0.1245.39.msi';
-        },
-        # Firefox
-        @{
-            Path = 'f/firefox/100/Firefox Setup 101.0.1.msi';
-        },
-        # Git
-        @{
-            Arguments = @(
-                '/CLOSEAPPLICATIONS',
-                '/COMPONENTS=gitlfs',
-                '/NOCANCEL',
-                '/NORESTART',
-                '/RESTARTAPPLICATIONS',
-                '/SP-',
-                '/VERYSILENT',
-                '/o:BashTerminalOption=ConHost',
-                '/o:EnableSymLink=Enabled',
-                '/o:PathOption=CmdTools'
-            );
-            Path = 'g/git/2/Git-2.36.1-64-bit.exe';
-        },
-        # GitHub CLI
-        @{
-            Path = 'g/github-cli/2/gh_2.12.1_windows_amd64.msi';
-        },
         # .NET 6.0
         @{
             Arguments = @('/install', '/norestart', '/quiet');
@@ -461,6 +461,21 @@ elseif ($IsWindows) {
             Path = 'p/python/3/python-3.10.5-win32-x64.zip';
             Type = 'CachedTool';
             WorkingDirectory = ('{0}/Python/3.10.5/x64' -f $localDirectoryPath);
+        },
+        @{
+            Commands = @(
+                @{
+                    Value = {
+                        az extension add --name 'azure-devops' --yes;
+                        az extension add --name 'dev-spaces' --yes;
+                        az extension add --name 'front-door' --yes;
+                        az extension add --name 'rdbms-connect' --yes;
+                        az extension add --name 'resource-graph' --yes;
+                        az extension add --name 'ssh' --yes;
+                    }
+                }
+            );
+            Type = 'PowerShellScript-Inline';
         }
     );
 }
@@ -498,8 +513,7 @@ $remoteBinaries |
                 });
 
                 Write-Host $remoteBinary.Path;
-                Get-AzureStorageBlob @azureStorageBlobParams |
-                    Out-Null;
+                Get-AzureStorageBlob @azureStorageBlobParams | Out-Null;
             }
             { @('Executable', 'PowerShellScript') -contains $_ } {
                 $localBinaries.Add(@{
@@ -515,15 +529,21 @@ $remoteBinaries |
                             LocalFilePath = ('{0}/{1}' -f $localDirectoryPath, (Split-Path $_ -Leaf));
                             RemoteBlobPath = ('{0}/{1}' -f $remoteBlobBasePath, $_);
                         };
-
+                
                         if ($Force) {
                             $azureStorageBlobParams.Force = $true;
                         }
-
+                
                         Write-Host $_;
-                        Get-AzureStorageBlob @azureStorageBlobParams |
-                            Out-Null;
+                        Get-AzureStorageBlob @azureStorageBlobParams | Out-Null;
                     };
+            }
+            'PowerShellScript-Inline' {
+                $localBinaries.Add(@{
+                    Commands = $remoteBinary.Commands;
+                    Type = $remoteBinary.Type;
+                    WorkingDirectory = $remoteBinary.WorkingDirectory;
+                });
             }
             default {
                 $azureStorageBlobParams = @{
@@ -599,6 +619,14 @@ $localBinaries |
                         $arguments = $_.Arguments;
 
                         & $_.Value @arguments;
+                    };
+            }
+            'PowerShellScript-Inline' {
+                $localBinary.Commands |
+                    ForEach-Object {
+                        Invoke-Command `
+                            -ArgumentList $_.Arguments `
+                            -ScriptBlock $_.Value;
                     };
             }
             default {
