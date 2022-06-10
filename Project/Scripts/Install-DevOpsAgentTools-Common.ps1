@@ -8,6 +8,95 @@ param(
     [string]$TemporaryPath = ''
 );
 
+function Update-EnvironmentVariables {
+    $originalArchitecture = ${Env:PROCESSOR_ARCHITECTURE};
+    $originalPsModulePath = ${Env:PSModulePath};
+    $originalUserName = ${Env:USERNAME};
+    $pathEntries = ([string[]]@());
+
+    # process
+    Get-ChildItem `
+        -Path 'Env:\' |
+        Select-Object `
+            -ExpandProperty 'Key' |
+            ForEach-Object {
+                Set-Item `
+                    -Path ('Env:{0}' -f $_) `
+                    -Value ([Environment]::GetEnvironmentVariable($_, [EnvironmentVariableTarget]::Process));
+            };
+
+    # machine
+    $machineEnvironmentRegistryKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey('SYSTEM\CurrentControlSet\Control\Session Manager\Environment\');
+
+    if ($null -ne $machineEnvironmentRegistryKey) {
+        try {
+            Get-Item `
+                -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment' |
+                Select-Object `
+                    -ExpandProperty 'Property' |
+                    ForEach-Object {
+                        $value =  $machineEnvironmentRegistryKey.GetValue(`
+                            $_, `
+                            [string]::Empty, `
+                            [Microsoft.Win32.RegistryValueOptions]::None `
+                        );
+
+                        Set-Item `
+                            -Path ('Env:{0}' -f $_) `
+                            -Value $value;
+
+                        if ('PATH' -eq $_) {
+                            $pathEntries += $value.Split(';');
+                        }
+                    };
+        }
+        finally {
+            $machineEnvironmentRegistryKey.Close();
+        }
+    }
+
+    #user
+    if ($originalUserName -notin @('SYSTEM', ('{0}$' -f ${Env:COMPUTERNAME}))) {
+        $userEnvironmentRegistryKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment');
+        $userPathEntries = ([string[]]@());
+
+        if ($null -ne $userEnvironmentRegistryKey) {
+            try {
+                Get-Item `
+                    -Path 'HKCU:\Environment' |
+                    Select-Object `
+                        -ExpandProperty 'Property' |
+                        ForEach-Object {
+                            $value =  $userEnvironmentRegistryKey.GetValue(`
+                                $_, `
+                                [string]::Empty, `
+                                [Microsoft.Win32.RegistryValueOptions]::None `
+                            );
+
+                            Set-Item `
+                                -Path ('Env:{0}' -f $_) `
+                                -Value $value;
+
+                            if ('PATH' -eq $_) {
+                                $pathEntries += $value.Split(';');
+                            }
+                        };
+            }
+            catch {
+                $userEnvironmentRegistryKey.Close();
+            }
+        }
+    }
+
+    ${Env:PATH} = (($pathEntries | Select-Object -Unique) -Join ';');
+    ${Env:PROCESSOR_ARCHITECTURE} = $originalArchitecture;
+    ${Env:PSModulePath} = $originalPsModulePath;
+
+    if ($originalUserName) {
+        ${Env:USERNAME} = $originalUserName;
+    }
+}
+
 $localBinaries = [Collections.Generic.List[PSObject]]::new();
 $localDirectoryPath = ('{0}{1}' -f (Get-PSDrive -Name 'Temp').Root, 'bytrc');
 $remoteBinaries = @();
@@ -664,4 +753,6 @@ $localBinaries |
                 }
             }
         }
+
+        Update-EnvironmentVariables;
     };
