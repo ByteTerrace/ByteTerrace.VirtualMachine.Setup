@@ -197,8 +197,17 @@ if ($IsLinux) {
         },
         # PowerShell Az Module
         @{
-            Name = 'Az'
-            Path = 'p/powershell/modules/az/7/az_7.5.0.zip';
+            Path = 'p/powershell/modules/az/8/Az_8.0.0.zip';
+            Type = 'PowerShellModule';
+        },
+        # PowerShell PackageManagement Module
+        @{
+            Path = 'p/powershell/modules/packagemanagement/1/PackageManagement_1.4.7.zip';
+            Type = 'PowerShellModule';
+        },
+        # PowerShell SqlServer Module
+        @{
+            Path = 'p/powershell/modules/sqlserver/20/SqlServer_21.1.18256.zip';
             Type = 'PowerShellModule';
         },
         # Azure CLI 2
@@ -544,6 +553,21 @@ elseif ($IsWindows) {
         @{
             Path = 'n/nodejs/16/node-v16.15.1-x64.msi';
         },
+        # PowerShell Az Module
+        @{
+            Path = 'p/powershell/modules/az/8/Az_8.0.0.zip';
+            Type = 'PowerShellModule';
+        },
+        # PowerShell PackageManagement Module
+        @{
+            Path = 'p/powershell/modules/packagemanagement/1/PackageManagement_1.4.7.zip';
+            Type = 'PowerShellModule';
+        },
+        # PowerShell SqlServer Module
+        @{
+            Path = 'p/powershell/modules/sqlserver/20/SqlServer_21.1.18256.zip';
+            Type = 'PowerShellModule';
+        },
         # .NET 6.0
         @{
             Arguments = @('/install', '/norestart', '/quiet');
@@ -708,9 +732,6 @@ $internalTasks |
                     -DestinationPath $powerShellModulePath `
                     -Path $task.Path |
                     Out-Null;
-                Move-Item `
-                    -Destination ('{0}/{1}' -f $powerShellModulePath, $task.Name) `
-                    -Path ('{0}/{1}' -f $powerShellModulePath, [IO.Path]::GetFileNameWithoutExtension($task.Path));
             }
             'PowerShellScript' {
                 $task.Commands |
