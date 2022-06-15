@@ -22,26 +22,20 @@ function Set-JavaPath {
         [Parameter(Mandatory = $false)]
         [switch]$Default,
         [Parameter(Mandatory = $true)]
-        [string]$VendorName,
+        [string]$Value,
         [Parameter(Mandatory = $true)]
         [Version]$Version
     );
 
-    $javaPath = (Get-Item -Path (
-        Join-Path `
-            -ChildPath ('Java_{0}_jdk/{1}*/{2}' -f $VendorName, $Version, $Architecture) `
-            -Path ${Env:AGENT_TOOLSDIRECTORY}
-    )).FullName;
-
-    if ([string]::IsNullOrEmpty($javaPath)) {
-        throw ('Java installation not found for version: {0}' -f $Version);
+    if ([string]::IsNullOrEmpty($Value)) {
+        throw ('Java path cannot be null or empty.');
     }
 
-    [System.Environment]::SetEnvironmentVariable(('JAVA_HOME_{0}_{1}' -f $Version.Major, $Architecture.ToUpper()), $javaPath, 'Machine');
+    [System.Environment]::SetEnvironmentVariable(('JAVA_HOME_{0}_{1}' -f $Version.Major, $Architecture.ToUpper()), $Value, 'Machine');
 
     if ($Default) {
         $javaCommand = Get-Command `
-            -ErrorAction [Management.Automation.ActionPreference]::Ignore `
+            -ErrorAction ([Management.Automation.ActionPreference]::Ignore) `
             -Name 'java';
         $machinePath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine');
 
@@ -49,9 +43,9 @@ function Set-JavaPath {
             $machinePath = $machinePath.Replace(('{0};' -f [IO.Path]::GetDirectoryName($javaCommand.Source)), '');
         }
 
-        $machinePath = ('{0};{1}' -f $javaPath, $machinePath);
+        $machinePath = ('{0}\bin;{1}' -f $Value, $machinePath);
 
-        [System.Environment]::SetEnvironmentVariable('JAVA_HOME', $javaPath, 'Machine');
+        [System.Environment]::SetEnvironmentVariable('JAVA_HOME', $Value, 'Machine');
         [System.Environment]::SetEnvironmentVariable('Path', $machinePath, "Machine");
     }
 }
@@ -89,17 +83,23 @@ try {
         -Path $InstallationPath |
         Out-Null;
 
+    $javaPath = Join-Path `
+        -ChildPath $Architecture `
+        -Path $InstallationPath;
+    $parsedVersion = ([Version]$Version.Substring(0, $Version.IndexOf('-')));
+
     if ('Temurin-Hotspot' -eq $VendorName) {
-        if (8 -eq $Version.Major) {
-            Set-JavaPath `
-                -Default `
-                -VendorName $VendorName `
-                -Version $Version.Substring(0, $Version.IndexOf('-'));
-        } else {
-            Set-JavaPath `
-                -VendorName $VendorName `
-                -Version $Version.Substring(0, $Version.IndexOf('-'));
+        $setJavaPathParams = @{
+            Architecture = $Architecture;
+            Value = $javaPath;
+            Version = $parsedVersion;
+        };
+
+        if (8 -eq $parsedVersion.Major) {
+            $setJavaPathParams.Default = $true;
         }
+
+        Set-JavaPath @setJavaPathParams;
     }
 }
 finally {

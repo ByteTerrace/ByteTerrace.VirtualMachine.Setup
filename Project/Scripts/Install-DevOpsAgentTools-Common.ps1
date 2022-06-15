@@ -49,7 +49,7 @@ function Update-EnvironmentVariables {
                             -Path ('Env:{0}' -f $_) `
                             -Value $value;
 
-                        if ('PATH' -eq $_) {
+                        if ('Path' -eq $_) {
                             $pathEntries += $value.Split(';');
                         }
                     };
@@ -81,7 +81,7 @@ function Update-EnvironmentVariables {
                                 -Path ('Env:{0}' -f $_) `
                                 -Value $value;
 
-                            if ('PATH' -eq $_) {
+                            if ('Path' -eq $_) {
                                 $pathEntries += $value.Split(';');
                             }
                         };
@@ -449,7 +449,7 @@ elseif ($IsWindows) {
                 }
             );
             Paths = @(
-                'v/visual-studio/17/Install-VisualStudioLayout-Windows.ps1',
+                'p/powershell/scripts/visual-studio/Install-VisualStudioLayout-Windows.ps1',
                 'v/visual-studio/17/vs_BuildTools_17.2.3.zip'
             );
             Type = 'PowerShellScript';
