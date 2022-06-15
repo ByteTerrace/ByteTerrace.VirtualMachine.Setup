@@ -432,32 +432,82 @@ elseif ($IsWindows) {
 
     $powerShellModulePath = ('{0}/PowerShell/7/Modules' -f [System.Environment]::GetEnvironmentVariable('ProgramFiles'));
     $Tasks += @(
+        @{
+            Paths = @(
+                'p/powershell/scripts/java/Install-JavaSdk-Windows.ps1',
+                'p/powershell/scripts/visual-studio/Install-VisualStudioLayout-Windows.ps1',
+                'v/vsix-bootstrapper/1/VSIXBootstrapper_1.0.37.exe'
+            );
+            Type = 'Download';
+        }
         # 7-Zip
         @{
             Arguments = @('/S');
             Path = 's/7zip/20/7z2107-x64.exe';
-            UpdateEnvironmentVariables = $true;
         },
-        # Visual Studio Build Tools
+        # Visual Studio - Enterprise
         @{
             Commands = @(
                 @{
                     Arguments = @{
-                        Edition = 'BuildTools';
+                        Edition = 'Enterprise';
                     };
                     Value = ('{0}/Install-VisualStudioLayout-Windows.ps1' -f $localDirectoryPath);
                 }
             );
-            Paths = @(
-                'p/powershell/scripts/visual-studio/Install-VisualStudioLayout-Windows.ps1',
-                'v/visual-studio/17/vs_BuildTools_17.2.3.zip'
-            );
+            Paths = @('v/visual-studio/17/vs_Enterprise_17.2.3.zip');
             Type = 'PowerShellScript';
+            UpdateEnvironmentVariables = $true;
+        },
+        # Visual Studio - Microsoft.DataTools.AnalysisServices
+        @{
+            Commands = @(
+                @{
+                    Arguments = @(
+                        '/quiet',
+                        ('{0}/Microsoft.DataTools.AnalysisServices_3.0.3.vsix' -f $localDirectoryPath)
+                    );
+                    Value = ('{0}/VSIXBootstrapper_1.0.37.exe' -f $localDirectoryPath);
+                }
+            );
+            Paths = @('v/visual-studio/17/Microsoft.DataTools.AnalysisServices_3.0.3.vsix');
+            Type = 'Executable';
+        },
+        # Visual Studio - Microsoft.DataTools.ReportingServices
+        @{
+            Commands = @(
+                @{
+                    Arguments = @(
+                        '/quiet',
+                        ('{0}/Microsoft.DataTools.ReportingServices_3.0.1.vsix' -f $localDirectoryPath)
+                    );
+                    Value = ('{0}/VSIXBootstrapper_1.0.37.exe' -f $localDirectoryPath);
+                }
+            );
+            Paths = @('v/visual-studio/17/Microsoft.DataTools.ReportingServices_3.0.1.vsix');
+            Type = 'Executable';
         },
         # Azure CLI
         @{
             Path = 'a/azure-cli/2/azure-cli-2.37.0.msi';
             UpdateEnvironmentVariables = $true;
+        },
+        # Azure CLI Extensions
+        @{
+            Commands = @(
+                @{
+                    Value = {
+                        az bicep install;
+                        az extension add --name 'azure-devops' --yes;
+                        az extension add --name 'dev-spaces' --yes;
+                        az extension add --name 'front-door' --yes;
+                        az extension add --name 'rdbms-connect' --yes;
+                        az extension add --name 'resource-graph' --yes;
+                        az extension add --name 'ssh' --yes;
+                    }
+                }
+            );
+            Type = 'PowerShellScript-Inline';
         },
         # Chrome
         @{
@@ -504,10 +554,7 @@ elseif ($IsWindows) {
                     Value = ('{0}/Install-JavaSdk-Windows.ps1' -f $localDirectoryPath);
                 }
             );
-            Paths = @(
-                'o/openjdk-temurin/8/OpenJDK8U-jdk_x64_windows_hotspot_8u332b09.zip',
-                'p/powershell/scripts/java/Install-JavaSdk-Windows.ps1'
-            );
+            Paths = @('o/openjdk-temurin/8/OpenJDK8U-jdk_x64_windows_hotspot_8u332b09.zip');
             Type = 'PowerShellScript';
             UpdateEnvironmentVariables = $true;
         },
@@ -524,9 +571,7 @@ elseif ($IsWindows) {
                     Value = ('{0}/Install-JavaSdk-Windows.ps1' -f $localDirectoryPath);
                 }
             );
-            Paths = @(
-                'o/openjdk-temurin/11/OpenJDK11U-jdk_x64_windows_hotspot_11.0.15_10.zip'
-            );
+            Paths = @('o/openjdk-temurin/11/OpenJDK11U-jdk_x64_windows_hotspot_11.0.15_10.zip');
             Type = 'PowerShellScript';
             UpdateEnvironmentVariables = $true;
         },
@@ -543,9 +588,7 @@ elseif ($IsWindows) {
                     Value = ('{0}/Install-JavaSdk-Windows.ps1' -f $localDirectoryPath);
                 }
             );
-            Paths = @(
-                'o/openjdk-temurin/17/OpenJDK17U-jdk_x64_windows_hotspot_17.0.3_7.zip'
-            );
+            Paths = @('o/openjdk-temurin/17/OpenJDK17U-jdk_x64_windows_hotspot_17.0.3_7.zip');
             Type = 'PowerShellScript';
             UpdateEnvironmentVariables = $true;
         },
@@ -568,6 +611,21 @@ elseif ($IsWindows) {
             Path = 'p/powershell/modules/sqlserver/20/SqlServer_21.1.18256.zip';
             Type = 'PowerShellModule';
         },
+        # Python 3.10
+        @{
+            Path = 'p/python/3/python-3.10.5-win32-x64.zip';
+            Type = 'CachedTool';
+            WorkingDirectory = ('{0}/Python/3.10.5/x64' -f $localDirectoryPath);
+        },
+        # .NET 3.1
+        @{
+            Arguments = @('/install', '/norestart', '/quiet');
+            Path = 'd/dotnet/3/dotnet-sdk-3.1.420-win-x64.exe';
+        },
+        @{
+            Arguments = @('/install', '/norestart', '/quiet');
+            Path = 'd/dotnet/3/dotnet-hosting-3.1.26-win.exe';
+        },
         # .NET 6.0
         @{
             Arguments = @('/install', '/norestart', '/quiet');
@@ -576,27 +634,6 @@ elseif ($IsWindows) {
         @{
             Arguments = @('/install', '/norestart', '/quiet');
             Path = 'd/dotnet/6/dotnet-hosting-6.0.5-win.exe';
-        },
-        @{
-            Path = 'p/python/3/python-3.10.5-win32-x64.zip';
-            Type = 'CachedTool';
-            WorkingDirectory = ('{0}/Python/3.10.5/x64' -f $localDirectoryPath);
-        },
-        @{
-            Commands = @(
-                @{
-                    Value = {
-                        az bicep install;
-                        az extension add --name 'azure-devops' --yes;
-                        az extension add --name 'dev-spaces' --yes;
-                        az extension add --name 'front-door' --yes;
-                        az extension add --name 'rdbms-connect' --yes;
-                        az extension add --name 'resource-graph' --yes;
-                        az extension add --name 'ssh' --yes;
-                    }
-                }
-            );
-            Type = 'PowerShellScript-Inline';
         }
     );
 }
@@ -637,7 +674,7 @@ $Tasks |
                 Write-Host $task.Path;
                 Get-AzureStorageBlob @azureStorageBlobParams | Out-Null;
             }
-            { @('Executable', 'PowerShellScript') -contains $_ } {
+            { @('Download', 'Executable', 'PowerShellScript') -contains $_ } {
                 $internalTasks.Add(@{
                     Commands = $task.Commands;
                     Type = $task.Type;
@@ -720,6 +757,7 @@ $internalTasks |
                     Pop-Location;
                 }
             }
+            'Download' {}
             'Executable' {
                 $task.Commands |
                     ForEach-Object {
@@ -790,3 +828,11 @@ $internalTasks |
             Update-EnvironmentVariables;
         }
     };
+
+if (Test-Path -Path $localDirectoryPath) {
+    Write-Debug 'Removing configuration files...';
+    Remove-Item `
+        -Force `
+        -Path $localDirectoryPath `
+        -Recurse;
+}

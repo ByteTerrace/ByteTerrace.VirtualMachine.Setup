@@ -1,6 +1,6 @@
 $azureStorageAccountName = 'byteterrace';
 $devOpsAgentToolsScriptName = 'Install-DevOpsAgentTools-Common.ps1';
-$powerShellPackageName = 'PowerShell-7.2.3-win-x64.msi';
+$powerShellPackageName = 'PowerShell-7.2.4-win-x64.msi';
 $setupModuleName = 'ByteTerrace.VirtualMachine.Setup';
 $temporaryPath = [IO.Path]::Combine(([IO.Path]::GetTempPath()), 'bytrc');
 
