@@ -37,20 +37,29 @@ function Set-JavaPath {
         throw ('Java installation not found for version: {0}' -f $Version);
     }
 
-    setx ('JAVA_HOME_{0}_{1}' -f $Version.Major, $Architecture.ToUpper()) $javaPath /M | Out-Null;
+    [System.Environment]::SetEnvironmentVariable(('JAVA_HOME_{0}_{1}' -f $Version.Major, $Architecture.ToUpper()), $javaPath, 'Machine');
 
     if ($Default) {
-        setx 'JAVA_HOME' $javaPath /M | Out-Null;
+        $javaCommand = Get-Command `
+            -ErrorAction [Management.Automation.ActionPreference]::Ignore `
+            -Name 'java';
+        $machinePath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine');
+
+        if ($javaCommand) {
+            $machinePath = $machinePath.Replace(('{0};' -f [IO.Path]::GetDirectoryName($javaCommand.Source)), '');
+        }
+
+        $machinePath = ('{0};{1}' -f $javaPath, $machinePath);
+
+        [System.Environment]::SetEnvironmentVariable('JAVA_HOME', $javaPath, 'Machine');
+        [System.Environment]::SetEnvironmentVariable('Path', $machinePath, "Machine");
     }
 }
 
 if ([string]::IsNullOrEmpty($InstallationPath)) {
     $InstallationPath = (
         Join-Path `
-            -AdditionalChildPath @(
-                $Version,
-                $Architecture
-            ) `
+            -AdditionalChildPath @($Version) `
             -ChildPath ('Java_{0}_jdk' -f $VendorName) `
             -Path ${Env:AGENT_TOOLSDIRECTORY}
     );
@@ -69,10 +78,15 @@ try {
     Expand-Archive `
         -DestinationPath $InstallationPath `
         -Path $PackageName;
+    Get-ChildItem `
+        -Path $InstallationPath |
+        Rename-Item `
+            -NewName $Architecture |
+            Out-Null;
     New-Item `
         -ItemType 'File' `
         -Name ('{0}.complete' -f $Architecture) `
-        -Path ([IO.Directory]::GetParent($InstallationPath)) |
+        -Path $InstallationPath |
         Out-Null;
 
     if ('Temurin-Hotspot' -eq $VendorName) {

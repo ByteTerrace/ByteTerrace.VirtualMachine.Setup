@@ -9,7 +9,7 @@ setupModuleName='ByteTerrace.VirtualMachine.Setup' && \
 temporaryPath='/tmp/bytrc' && \
 mkdir -p $temporaryPath && \
 cd $temporaryPath && \
-curl -O "https://$azureStorageAccountName.blob.core.windows.net/binaries/PowerShell/Modules/1/ByteTerrace.VirtualMachine.Setup/$setupModuleName.zip" && \
+curl -o "$temporaryPath/$setupModuleName.zip" "https://$azureStorageAccountName.blob.core.windows.net/binaries/p/powershell/modules/byteterrace/virtual-machine/configuration/1.0.0.zip" && \
 curl -O "https://$azureStorageAccountName.blob.core.windows.net/binaries/p/powershell/7/$powerShellPackageName" && \
 curl -O "https://$azureStorageAccountName.blob.core.windows.net/scripts/$devOpsAgentToolsScriptName" && \
 dpkg --install "./$powerShellPackageName" && \

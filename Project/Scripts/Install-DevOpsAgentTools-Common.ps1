@@ -18,7 +18,7 @@ function Update-EnvironmentVariables {
     $originalUserName = ${Env:USERNAME};
     $pathEntries = ([string[]]@());
 
-    # process
+    # 0) process
     Get-ChildItem `
         -Path 'Env:\' |
         Select-Object `
@@ -29,7 +29,7 @@ function Update-EnvironmentVariables {
                     -Value ([Environment]::GetEnvironmentVariable($_, [EnvironmentVariableTarget]::Process));
             };
 
-    # machine
+    # 1) machine
     $machineEnvironmentRegistryKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey('SYSTEM\CurrentControlSet\Control\Session Manager\Environment\');
 
     if ($null -ne $machineEnvironmentRegistryKey) {
@@ -59,7 +59,7 @@ function Update-EnvironmentVariables {
         }
     }
 
-    #user
+    # 2) user
     if ($originalUserName -notin @('SYSTEM', ('{0}$' -f ${Env:COMPUTERNAME}))) {
         $userEnvironmentRegistryKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment');
         $userPathEntries = ([string[]]@());
@@ -586,6 +586,7 @@ elseif ($IsWindows) {
             Commands = @(
                 @{
                     Value = {
+                        az bicep install;
                         az extension add --name 'azure-devops' --yes;
                         az extension add --name 'dev-spaces' --yes;
                         az extension add --name 'front-door' --yes;
