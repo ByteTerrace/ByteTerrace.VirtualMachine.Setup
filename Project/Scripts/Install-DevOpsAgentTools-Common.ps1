@@ -12,6 +12,51 @@ param(
     [string]$TemporaryPath = ''
 );
 
+function Disable-NetworkDiscoveryPopup {
+    New-Item `
+        -Force `
+        -Name 'NewNetworkWindowOff' `
+        -Path 'HKLM:\System\CurrentControlSet\Control\Network' |
+        Out-Null;
+}
+function Disable-ServerManagerOnLogin {
+    Get-ScheduledTask `
+        -TaskName 'ServerManager' |
+        Disable-ScheduledTask;
+}
+function Disable-UserAccessControl {
+    Set-ItemProperty `
+        -Force `
+        -Name 'ConsentPromptBehaviorAdmin' `
+        -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' `
+        -Value '0' |
+        Out-Null;
+}
+function Disable-WindowsUpdate {
+    $registryKey = 'HKLM:SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU';
+
+    if (Test-Path -Path $registryKey) {
+        Set-ItemProperty `
+            -Name 'NoAutoUpdate' `
+            -Path $registryKey `
+            -Value '1' |
+            Out-Null;
+    }
+}
+function Enable-LongPathBehavior {
+    Set-ItemProperty `
+        -Force `
+        -Name 'LongPathsEnabled' `
+        -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' `
+        -Value '1' |
+        Out-Null;
+}
+function Resize-SystemDrive {
+    $systemDriveLetter = ${Env:SystemDrive}[0];
+    Resize-Partition `
+        -DriveLetter $systemDriveLetter `
+        -Size (Get-PartitionSupportedSize -DriveLetter $systemDriveLetter).SizeMax;
+}
 function Update-EnvironmentVariables {
     $originalArchitecture = ${Env:PROCESSOR_ARCHITECTURE};
     $originalPsModulePath = ${Env:PSModulePath};
@@ -62,7 +107,6 @@ function Update-EnvironmentVariables {
     # 2) user
     if ($originalUserName -notin @('SYSTEM', ('{0}$' -f ${Env:COMPUTERNAME}))) {
         $userEnvironmentRegistryKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment');
-        $userPathEntries = ([string[]]@());
 
         if ($null -ne $userEnvironmentRegistryKey) {
             try {
@@ -102,7 +146,9 @@ function Update-EnvironmentVariables {
 }
 
 $internalTasks = [Collections.Generic.List[PSObject]]::new();
-$localDirectoryPath = ('{0}{1}' -f (Get-PSDrive -Name 'Temp').Root, 'bytrc');
+$localDirectoryPath = Join-Path `
+    -ChildPath 'bytrc' `
+    -Path (Get-PSDrive -Name 'Temp').Root;
 
 if (-not([string]::IsNullOrEmpty($TemporaryPath))) {
     $localDirectoryPath = $TemporaryPath;
@@ -428,7 +474,22 @@ if ($IsLinux) {
     );
 }
 elseif ($IsWindows) {
-    [System.Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', ('{0}/agent/_work/_tool' -f ${Env:SystemDrive}));
+    [System.Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', (
+        Join-Path `
+            -ChildPath 'agent/_work/_tool' `
+            -Path ${Env:SystemDrive}
+    ));
+    Disable-WindowsUpdate;
+    Disable-UserAccessControl;
+    Disable-ServerManagerOnLogin;
+    Disable-NetworkDiscoveryPopup;
+    Set-ExecutionPolicy `
+        -ErrorAction ([Management.Automation.ActionPreference]::Continue) `
+        -ExecutionPolicy ([Microsoft.PowerShell.ExecutionPolicy]::Unrestricted) `
+        -Scope ([Microsoft.PowerShell.ExecutionPolicyScope]::LocalMachine) |
+        Out-Null;
+    Enable-LongPathBehavior;
+    Resize-SystemDrive;
 
     $powerShellModulePath = ('{0}/PowerShell/7/Modules' -f [System.Environment]::GetEnvironmentVariable('ProgramFiles'));
     $Tasks += @(
@@ -439,53 +500,11 @@ elseif ($IsWindows) {
                 'v/vsix-bootstrapper/1/VSIXBootstrapper_1.0.37.exe'
             );
             Type = 'Download';
-        }
+        },
         # 7-Zip
         @{
             Arguments = @('/S');
             Path = 's/7zip/20/7z2107-x64.exe';
-        },
-        # Visual Studio - Enterprise
-        @{
-            Commands = @(
-                @{
-                    Arguments = @{
-                        Edition = 'Enterprise';
-                    };
-                    Value = ('{0}/Install-VisualStudioLayout-Windows.ps1' -f $localDirectoryPath);
-                }
-            );
-            Paths = @('v/visual-studio/17/vs_Enterprise_17.2.3.zip');
-            Type = 'PowerShellScript';
-            UpdateEnvironmentVariables = $true;
-        },
-        # Visual Studio - Microsoft.DataTools.AnalysisServices
-        @{
-            Commands = @(
-                @{
-                    Arguments = @(
-                        '/quiet',
-                        ('{0}/Microsoft.DataTools.AnalysisServices_3.0.3.vsix' -f $localDirectoryPath)
-                    );
-                    Value = ('{0}/VSIXBootstrapper_1.0.37.exe' -f $localDirectoryPath);
-                }
-            );
-            Paths = @('v/visual-studio/17/Microsoft.DataTools.AnalysisServices_3.0.3.vsix');
-            Type = 'Executable';
-        },
-        # Visual Studio - Microsoft.DataTools.ReportingServices
-        @{
-            Commands = @(
-                @{
-                    Arguments = @(
-                        '/quiet',
-                        ('{0}/Microsoft.DataTools.ReportingServices_3.0.1.vsix' -f $localDirectoryPath)
-                    );
-                    Value = ('{0}/VSIXBootstrapper_1.0.37.exe' -f $localDirectoryPath);
-                }
-            );
-            Paths = @('v/visual-studio/17/Microsoft.DataTools.ReportingServices_3.0.1.vsix');
-            Type = 'Executable';
         },
         # Azure CLI
         @{
@@ -551,7 +570,9 @@ elseif ($IsWindows) {
                         Vendor = 'Temurin-Hotspot';
                         Version = '8.0.332-9';
                     };
-                    Value = ('{0}/Install-JavaSdk-Windows.ps1' -f $localDirectoryPath);
+                    Value = Join-Path `
+                        -ChildPath 'Install-JavaSdk-Windows.ps1' `
+                        -Path $localDirectoryPath;
                 }
             );
             Paths = @('o/openjdk-temurin/8/OpenJDK8U-jdk_x64_windows_hotspot_8u332b09.zip');
@@ -568,7 +589,9 @@ elseif ($IsWindows) {
                         Vendor = 'Temurin-Hotspot';
                         Version = '11.0.15-10';
                     };
-                    Value = ('{0}/Install-JavaSdk-Windows.ps1' -f $localDirectoryPath);
+                    Value = Join-Path `
+                        -ChildPath 'Install-JavaSdk-Windows.ps1' `
+                        -Path $localDirectoryPath;
                 }
             );
             Paths = @('o/openjdk-temurin/11/OpenJDK11U-jdk_x64_windows_hotspot_11.0.15_10.zip');
@@ -585,7 +608,9 @@ elseif ($IsWindows) {
                         Vendor = 'Temurin-Hotspot';
                         Version = '17.0.3-7';
                     };
-                    Value = ('{0}/Install-JavaSdk-Windows.ps1' -f $localDirectoryPath);
+                    Value = Join-Path `
+                        -ChildPath 'Install-JavaSdk-Windows.ps1' `
+                        -Path $localDirectoryPath;
                 }
             );
             Paths = @('o/openjdk-temurin/17/OpenJDK17U-jdk_x64_windows_hotspot_17.0.3_7.zip');
@@ -615,7 +640,65 @@ elseif ($IsWindows) {
         @{
             Path = 'p/python/3/python-3.10.5-win32-x64.zip';
             Type = 'CachedTool';
-            WorkingDirectory = ('{0}/Python/3.10.5/x64' -f $localDirectoryPath);
+            WorkingDirectory = Join-Path `
+                -ChildPath 'Python/3.10.5/x64' `
+                -Path $localDirectoryPath;
+        },
+        # Visual Studio - Enterprise
+        @{
+            Commands = @(
+                @{
+                    Arguments = @{
+                        Edition = 'Enterprise';
+                    };
+                    Value = Join-Path `
+                        -ChildPath 'Install-VisualStudioLayout-Windows.ps1' `
+                        -Path $localDirectoryPath;
+                }
+            );
+            Paths = @('v/visual-studio/17/vs_Enterprise_17.2.3.zip');
+            Type = 'PowerShellScript';
+            UpdateEnvironmentVariables = $true;
+        },
+        ## Visual Studio - Microsoft.DataTools.AnalysisServices
+        #@{
+        #    Commands = @(
+        #        @{
+        #            Arguments = @(
+        #                '/quiet',
+        #                (Join-Path `
+        #                    -ChildPath 'Microsoft.DataTools.AnalysisServices_3.0.3.vsix' `
+        #                    -Path $localDirectoryPath)
+        #            );
+        #            Value = Join-Path `
+        #                -ChildPath 'VSIXBootstrapper_1.0.37.exe' `
+        #                -Path $localDirectoryPath;
+        #        }
+        #    );
+        #    Paths = @('v/visual-studio/17/Microsoft.DataTools.AnalysisServices_3.0.3.vsix');
+        #    Type = 'Executable';
+        #},
+        ## Visual Studio - Microsoft.DataTools.ReportingServices
+        #@{
+        #    Commands = @(
+        #        @{
+        #            Arguments = @(
+        #                '/quiet',
+        #                (Join-Path `
+        #                    -ChildPath 'Microsoft.DataTools.ReportingServices_3.0.1.vsix' `
+        #                    -Path $localDirectoryPath)
+        #            );
+        #            Value = Join-Path `
+        #                -ChildPath 'VSIXBootstrapper_1.0.37.exe' `
+        #                -Path $localDirectoryPath;
+        #        }
+        #    );
+        #    Paths = @('v/visual-studio/17/Microsoft.DataTools.ReportingServices_3.0.1.vsix');
+        #    Type = 'Executable';
+        #},
+        # Windows Application Driver
+        @{
+            Path = 'w/windows-application-driver/1/WindowsApplicationDriver_1.2.1.msi';
         },
         # .NET 3.1
         @{
@@ -741,20 +824,23 @@ $internalTasks |
                     Push-Location -Path $task.WorkingDirectory;
                 }
 
-                if ($IsLinux) {
-                    Invoke-Expression -Command ('tar -xzf ''{0}''' -f $task.Path);
-                    Invoke-Expression -Command 'bash ./setup.sh';
+                try {
+                    if ($IsLinux) {
+                        Invoke-Expression -Command ('tar -xzf ''{0}''' -f $task.Path);
+                        Invoke-Expression -Command 'bash ./setup.sh';
+                    }
+                    elseif ($IsWindows) {
+                        Expand-Archive `
+                            -DestinationPath '.' `
+                            -Path $task.Path |
+                            Out-Null;
+                        Invoke-Expression -Command './setup.ps1';
+                    }
                 }
-                elseif ($IsWindows) {
-                    Expand-Archive `
-                        -DestinationPath '.' `
-                        -Path $task.Path |
-                        Out-Null;
-                    Invoke-Expression -Command './setup.ps1';
-                }
-
-                if ($null -ne $task.WorkingDirectory) {
-                    Pop-Location;
+                finally {
+                    if ($null -ne $task.WorkingDirectory) {
+                        Pop-Location;
+                    }
                 }
             }
             'Download' {}
@@ -829,10 +915,176 @@ $internalTasks |
         }
     };
 
-if (Test-Path -Path $localDirectoryPath) {
-    Write-Debug 'Removing configuration files...';
-    Remove-Item `
+if ($IsWindows) {
+    Set-ItemProperty `
         -Force `
-        -Path $localDirectoryPath `
-        -Recurse;
+        -Name 'PreventDeviceMetadataFromNetwork' `
+        -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata' `
+        -Value '1' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'AllowTelemetry' `
+        -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection' `
+        -Value '0' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'DontOfferThroughWUAU' `
+        -Path 'HKLM:\SOFTWARE\Policies\Microsoft\MRT' `
+        -Value '1' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'DontReportInfectionInformation' `
+        -Path 'HKLM:\SOFTWARE\Policies\Microsoft\MRT' `
+        -Value '1' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'CEIPEnable' `
+        -Path 'HKLM:\SOFTWARE\Policies\Microsoft\SQMClient\Windows' `
+        -Value '0' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'AITEnable' `
+        -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat' `
+        -Value '0' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'DisableUAR' `
+        -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat' `
+        -Value '1' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'AllowTelemetry' `
+        -Path 'HKLM:\Software\Policies\Microsoft\Windows\DataCollection' `
+        -Value '0' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'DisableWindowsUpdateAccess' `
+        -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' `
+        -Value '1' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'DoNotConnectToWindowsUpdateInternetLocations' `
+        -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' `
+        -Value '1' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'AUOptions' `
+        -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' `
+        -Value '1' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'NoAutoUpdate' `
+        -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' `
+        -Value '1' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'AllowCortana' `
+        -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search' `
+        -Value '0' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'MaintenanceDisabled' `
+        -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\Maintenance' `
+        -Value '1' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'AllowTelemetry' `
+        -Path 'HKLM:\SOFTWARE\Wow6432Node\Policies\Microsoft\Windows\DataCollection' `
+        -Value '0' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'Start' `
+        -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener' `
+        -Value '0' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
+        -Name 'Start' `
+        -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\SQMLogger' `
+        -Value '0' |
+        Out-Null;
+
+    $scheduledTasksToDisable = @(
+        "\"
+        "\Microsoft\Azure\Security\"
+        "\Microsoft\VisualStudio\"
+        "\Microsoft\VisualStudio\Updates\"
+        "\Microsoft\Windows\Application Experience\"
+        "\Microsoft\Windows\ApplicationData\"
+        "\Microsoft\Windows\Autochk\"
+        "\Microsoft\Windows\Chkdsk\"
+        "\Microsoft\Windows\Customer Experience Improvement Program\"
+        "\Microsoft\Windows\Data Integrity Scan\"
+        "\Microsoft\Windows\Defrag\"
+        "\Microsoft\Windows\Diagnosis\"
+        "\Microsoft\Windows\DiskCleanup\"
+        "\Microsoft\Windows\DiskDiagnostic\"
+        "\Microsoft\Windows\Maintenance\"
+        "\Microsoft\Windows\PI\"
+        "\Microsoft\Windows\Power Efficiency Diagnostics\"
+        "\Microsoft\Windows\Server Manager\"
+        "\Microsoft\Windows\Speech\"
+        "\Microsoft\Windows\UpdateOrchestrator\"
+        "\Microsoft\Windows\Windows Error Reporting\"
+        "\Microsoft\Windows\WindowsUpdate\"
+        "\Microsoft\XblGameSave\"
+    );
+    $servicesToDisable = @(
+        "wuauserv",
+        "DiagTrack",
+        "dmwappushservice",
+        "PcaSvc",
+        "SysMain",
+        "gupdate",
+        "gupdatem"
+    );
+    $systemTempPath = (
+        Join-Path `
+            -ChildPath 'Temp' `
+            -Path ${Env:SystemRoot}
+    );
+    $systemTempAcl = Get-Acl -Path $systemTempPath;
+
+    $scheduledTasksToDisable |
+        ForEach-Object {
+            Get-ScheduledTask `
+                -ErrorAction ([Management.Automation.ActionPreference]::Ignore) `
+                -TaskPath $_ |
+                Disable-ScheduledTask `
+                    -ErrorAction ([Management.Automation.ActionPreference]::Ignore);
+        } |
+        Out-Null;
+    $servicesToDisable |
+        ForEach-Object {
+            Set-Service `
+                -ErrorAction ([Management.Automation.ActionPreference]::Ignore) `
+                -Name $_ `
+                -StartupType [Microsoft.PowerShell.Commands.ServiceStartupType]::Disabled;
+        } |
+        Out-Null;
+    $systemTempAcl.SetAccessRule([Security.AccessControl.FileSystemAccessRule]::new(`
+        'Users', `
+        [Security.AccessControl.FileSystemRights]::FullControl, `
+        ([Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit), `
+        [Security.AccessControl.PropagationFlags]::None, `
+        [Security.AccessControl.AccessControlType]::Allow `
+    ));
+    Set-Acl `
+        -AclObject $systemTempAcl `
+        -Path $systemTempPath;
 }

@@ -32,9 +32,15 @@ try {
         ) `
         -FilePath 'msiexec' `
         -Wait;
-
     & (Get-Item -Path "${Env:ProgramFiles}/PowerShell/7/pwsh.exe").FullName -Command "&{ Import-Module './$setupModuleName'; } && & './$devOpsAgentToolsScriptName' -AccountName '$azureStorageAccountName' -Force -TemporaryPath '$temporaryPath';";
 }
 finally {
     Pop-Location;
+}
+
+if (Test-Path -Path $temporaryPath) {
+    Remove-Item `
+        -Force `
+        -Path $temporaryPath `
+        -Recurse;
 }
