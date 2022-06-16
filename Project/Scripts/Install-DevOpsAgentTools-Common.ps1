@@ -154,11 +154,11 @@ if (-not([string]::IsNullOrEmpty($TemporaryPath))) {
     $localDirectoryPath = $TemporaryPath;
 }
 
-[System.Environment]::SetEnvironmentVariable('ACCEPT_EULA', 'Y');
-[System.Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', '1');
+[Environment]::SetEnvironmentVariable('ACCEPT_EULA', 'Y', [EnvironmentVariableTarget]::Process);
+[Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', '1', [EnvironmentVariableTarget]::Machine);
 
 if ($IsLinux) {
-    [System.Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', '/agent/_work/_tool');
+    [Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', '/agent/_work/_tool');
 
     $powerShellModulePath = '/opt/microsoft/powershell/7-lts/Modules';
     $Tasks += @(
@@ -474,24 +474,35 @@ if ($IsLinux) {
     );
 }
 elseif ($IsWindows) {
-    [System.Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', (
-        Join-Path `
-            -ChildPath 'agent/_work/_tool' `
-            -Path ${Env:SystemDrive}
-    ));
+    [Environment]::SetEnvironmentVariable(`
+        'AGENT_TOOLSDIRECTORY', (
+            Join-Path `
+                -ChildPath 'agent/_work/_tool' `
+                -Path ${Env:SystemDrive}
+        ), `
+        [EnvironmentVariableTarget]::Machine `
+    );
+    [Environment]::SetEnvironmentVariable(`
+        'AZURE_EXTENSION_DIR', (
+            Join-Path `
+                -ChildPath 'Tools/Azure/Extensions' `
+                -Path ${Env:SystemDrive}
+        ), `
+        [EnvironmentVariableTarget]::Machine `
+    );
     Disable-WindowsUpdate;
     Disable-UserAccessControl;
     Disable-ServerManagerOnLogin;
     Disable-NetworkDiscoveryPopup;
     Set-ExecutionPolicy `
-        -ErrorAction ([Management.Automation.ActionPreference]::Continue) `
+        -ErrorAction ([Management.Automation.ActionPreference]::Ignore) `
         -ExecutionPolicy ([Microsoft.PowerShell.ExecutionPolicy]::Unrestricted) `
         -Scope ([Microsoft.PowerShell.ExecutionPolicyScope]::LocalMachine) |
         Out-Null;
     Enable-LongPathBehavior;
     Resize-SystemDrive;
 
-    $powerShellModulePath = ('{0}/PowerShell/7/Modules' -f [System.Environment]::GetEnvironmentVariable('ProgramFiles'));
+    $powerShellModulePath = ('{0}/PowerShell/7/Modules' -f [Environment]::GetEnvironmentVariable('ProgramFiles'));
     $Tasks += @(
         @{
             Paths = @(
@@ -516,7 +527,6 @@ elseif ($IsWindows) {
             Commands = @(
                 @{
                     Value = {
-                        az bicep install;
                         az extension add --name 'azure-devops' --yes;
                         az extension add --name 'dev-spaces' --yes;
                         az extension add --name 'front-door' --yes;
@@ -930,6 +940,12 @@ if ($IsWindows) {
         Out-Null;
     Set-ItemProperty `
         -Force `
+        -Name 'MaintenanceDisabled' `
+        -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\Maintenance' `
+        -Value '1' |
+        Out-Null;
+    Set-ItemProperty `
+        -Force `
         -Name 'DontOfferThroughWUAU' `
         -Path 'HKLM:\SOFTWARE\Policies\Microsoft\MRT' `
         -Value '1' |
@@ -996,12 +1012,6 @@ if ($IsWindows) {
         Out-Null;
     Set-ItemProperty `
         -Force `
-        -Name 'MaintenanceDisabled' `
-        -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\Maintenance' `
-        -Value '1' |
-        Out-Null;
-    Set-ItemProperty `
-        -Force `
         -Name 'AllowTelemetry' `
         -Path 'HKLM:\SOFTWARE\Wow6432Node\Policies\Microsoft\Windows\DataCollection' `
         -Value '0' |
@@ -1019,6 +1029,12 @@ if ($IsWindows) {
         -Value '0' |
         Out-Null;
 
+    $azureToolsPath = (
+        Join-Path `
+            -ChildPath 'Tools/Azure' `
+            -Path ${Env:SystemDrive}
+    );
+    $azureToolsAcl = Get-Acl -Path $azureToolsPath;
     $scheduledTasksToDisable = @(
         "\"
         "\Microsoft\Azure\Security\"
@@ -1060,6 +1076,16 @@ if ($IsWindows) {
     );
     $systemTempAcl = Get-Acl -Path $systemTempPath;
 
+    $azureToolsAcl.SetAccessRule([Security.AccessControl.FileSystemAccessRule]::new(`
+        'Users', `
+        [Security.AccessControl.FileSystemRights]::FullControl, `
+        ([Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit), `
+        [Security.AccessControl.PropagationFlags]::None, `
+        [Security.AccessControl.AccessControlType]::Allow `
+    ));
+    Set-Acl `
+        -AclObject $azureToolsAcl `
+        -Path $azureToolsPath;
     $scheduledTasksToDisable |
         ForEach-Object {
             Get-ScheduledTask `

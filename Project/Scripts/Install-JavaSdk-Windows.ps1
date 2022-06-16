@@ -20,24 +20,26 @@ function Set-JavaPath {
         [Parameter(Mandatory = $false)]
         [string]$Architecture = "x64",
         [Parameter(Mandatory = $false)]
-        [switch]$Default,
+        [switch]$SystemDefault,
         [Parameter(Mandatory = $true)]
         [string]$Value,
         [Parameter(Mandatory = $true)]
-        [Version]$Version
+        [Version]$Version,
+        [Parameter(Mandatory = $false)]
+        [switch]$VersionDefault
     );
 
     if ([string]::IsNullOrEmpty($Value)) {
         throw ('Java path cannot be null or empty.');
     }
 
-    [System.Environment]::SetEnvironmentVariable(('JAVA_HOME_{0}_{1}' -f $Version.Major, $Architecture.ToUpper()), $Value, 'Machine');
+    [Environment]::SetEnvironmentVariable(('JAVA_HOME_{0}_{1}' -f $Version.Major, $Architecture.ToUpper()), $Value, [EnvironmentVariableTarget]::Machine);
 
-    if ($Default) {
+    if ($SystemDefault) {
         $javaCommand = Get-Command `
             -ErrorAction ([Management.Automation.ActionPreference]::Ignore) `
             -Name 'java';
-        $machinePath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine');
+        $machinePath = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::Machine);
 
         if ($javaCommand) {
             $machinePath = $machinePath.Replace(('{0};' -f [IO.Path]::GetDirectoryName($javaCommand.Source)), '');
@@ -45,8 +47,29 @@ function Set-JavaPath {
 
         $machinePath = ('{0}\bin;{1}' -f $Value, $machinePath);
 
-        [System.Environment]::SetEnvironmentVariable('JAVA_HOME', $Value, 'Machine');
-        [System.Environment]::SetEnvironmentVariable('Path', $machinePath, "Machine");
+        [Environment]::SetEnvironmentVariable('JAVA_HOME', $Value, [EnvironmentVariableTarget]::Machine);
+        [Environment]::SetEnvironmentVariable('Path', $machinePath, [EnvironmentVariableTarget]::Machine);
+    }
+
+    if ($VersionDefault) {
+        if (8 -eq $Version.Major) {
+            $registryKey = 'HKLM:\SOFTWARE\JavaSoft\Java Development Kit\1.8';
+        }
+
+        if (8 -lt $Version.Major) {
+            $registryKey = ('HKLM:\SOFTWARE\JavaSoft\JDK\{0}' -f $Version.Major);
+        }
+
+        New-Item `
+            -Force `
+            -Path $registryKey |
+            Out-Null;
+        Set-ItemProperty `
+            -Force `
+            -Name 'JavaHome' `
+            -Path $registryKey `
+            -Value $Value |
+            Out-Null;
     }
 }
 
@@ -93,10 +116,11 @@ try {
             Architecture = $Architecture;
             Value = $javaPath;
             Version = $parsedVersion;
+            VersionDefault = $true;
         };
 
         if (8 -eq $parsedVersion.Major) {
-            $setJavaPathParams.Default = $true;
+            $setJavaPathParams.SystemDefault = $true;
         }
 
         Set-JavaPath @setJavaPathParams;
